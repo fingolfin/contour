@@ -388,7 +388,7 @@ bool sendKeyEvent(QKeyEvent* event, vtbackend::KeyboardEventType eventType, Term
     }
 
 #if defined(__apple__)
-    if (0x20 <= key && key < 0x80 && (modifiers.alt() && session.profile().optionKeyAsAlt))
+    if (0x20 <= key && key < 0x80 && (modifiers.alt() && session.profile().optionKeyAsAlt.get()))
     {
         auto const ch = static_cast<char32_t>(modifiers.shift() ? std::toupper(key) : std::tolower(key));
         session.sendCharEvent(ch, physicalKey, modifiers, eventType, now);

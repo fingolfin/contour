@@ -14,7 +14,6 @@
 #include <array>
 #include <fstream>
 #include <iostream>
-#include <sstream>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -62,12 +61,11 @@ namespace fs = std::filesystem;
 namespace contour::config
 {
 
-int YAMLConfigWriter::Offset::levels { 0 };
-
 namespace
 {
 
     auto const configLog = logstore::category("config", "Logs configuration file loading.");
+
     optional<std::string> readFile(fs::path const& path)
     {
         if (!fs::exists(path))
@@ -190,7 +188,7 @@ void loadConfigFromFile(Config& config, fs::path const& fileName)
     config.configFile = fileName;
     createFileIfNotExists(config.configFile);
 
-    auto yamlVisitor = YAMLVisitor(config.configFile, configLog);
+    auto yamlVisitor = YAMLConfigReader(config.configFile, configLog);
     yamlVisitor.load(config);
 }
 
@@ -203,7 +201,9 @@ optional<std::string> readConfigFile(std::string const& filename)
     return nullopt;
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, std::filesystem::path& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
+                                     std::string const& entry,
+                                     std::filesystem::path& where)
 {
     auto const child = node[entry];
     if (child)
@@ -213,7 +213,9 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, std::filesys
     }
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, RenderingBackend& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
+                                     std::string const& entry,
+                                     RenderingBackend& where)
 {
     auto const child = node[entry];
     if (child)
@@ -228,7 +230,7 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, RenderingBac
     }
 }
 
-void YAMLVisitor::load(Config& c)
+void YAMLConfigReader::load(Config& c)
 {
     try
     {
@@ -236,7 +238,7 @@ void YAMLVisitor::load(Config& c)
         loadFromEntry("platform_plugin", c.platformPlugin);
         if (c.platformPlugin.get() == "auto")
         {
-            c.platformPlugin.get() = "";
+            c.platformPlugin = "";
         }
         loadFromEntry("default_profile", c.defaultProfileName);
         loadFromEntry("word_delimiters", c.wordDelimiters);
@@ -256,7 +258,7 @@ void YAMLVisitor::load(Config& c)
         loadFromEntry("images", c.maxImageSize);
         loadFromEntry("", c.experimentalFeatures);
         loadFromEntry("profiles", c.profiles);
-        // loadFromEntry("color_schemes", c.colorschemes);
+        // loadFromEntry("color_schemes", c.colorschemes); // NB: This is always loaded lazily
         loadFromEntry("input_mapping", c.inputMappings);
     }
     catch (std::exception const& e)
@@ -264,14 +266,15 @@ void YAMLVisitor::load(Config& c)
         errorLog()("Something went wrong during config file loading, check `contour debug config` output "
                    "for more info");
     }
-};
+}
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, TerminalProfile& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node, std::string const& entry, TerminalProfile& where)
 {
     logger()("loading profile {}\n", entry);
     auto const child = node[entry];
     if (child)
     {
+        // clang-format off
         if (child["shell"])
         {
             loadFromEntry(child, "shell", where.shell);
@@ -282,7 +285,7 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, TerminalProf
         }
         else
         {
-            // will create default shell if nor shell nor ssh config is provided
+            // will create default shell if no shell nor ssh config is provided
             loadFromEntry(child, "shell", where.shell);
         }
         loadFromEntry(child, "escape_sandbox", where.shell.get().escapeSandbox);
@@ -314,7 +317,6 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, TerminalProf
             loadFromEntry(child["mouse"], "hide_while_typing", where.mouseHideWhileTyping);
         if (child["permissions"])
         {
-
             loadFromEntry(child["permissions"], "capture_buffer", where.captureBuffer);
             loadFromEntry(child["permissions"], "change_font", where.changeFont);
             loadFromEntry(child["permissions"],
@@ -328,39 +330,27 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, TerminalProf
         {
             loadFromEntry(child["cursor"], "shape", where.modeInsert.get().cursor.cursorShape);
             loadFromEntry(child["cursor"], "blinking", where.modeInsert.get().cursor.cursorDisplay);
-            loadFromEntry(
-                child["cursor"], "blinking_interval", where.modeInsert.get().cursor.cursorBlinkInterval);
+            loadFromEntry(child["cursor"], "blinking_interval", where.modeInsert.get().cursor.cursorBlinkInterval);
         }
-        if (child["normal_mode"])
-            if (child["normal_mode"]["cursor"])
-            {
-                loadFromEntry(
-                    child["normal_mode"]["cursor"], "shape", where.modeNormal.get().cursor.cursorShape);
-                loadFromEntry(
-                    child["normal_mode"]["cursor"], "blinking", where.modeNormal.get().cursor.cursorDisplay);
-                loadFromEntry(child["normal_mode"]["cursor"],
-                              "blinking_interval",
-                              where.modeNormal.get().cursor.cursorBlinkInterval);
-            }
-        if (child["visual_mode"])
-            if (child["visual_mode"]["cursor"])
-            {
-                loadFromEntry(
-                    child["visual_mode"]["cursor"], "shape", where.modeVisual.get().cursor.cursorShape);
-                loadFromEntry(
-                    child["visual_mode"]["cursor"], "blinking", where.modeVisual.get().cursor.cursorDisplay);
-                loadFromEntry(child["visual_mode"]["cursor"],
-                              "blinking_interval",
-                              where.modeVisual.get().cursor.cursorBlinkInterval);
-            }
+        if (child["normal_mode"] && child["normal_mode"]["cursor"])
+        {
+            loadFromEntry(child["normal_mode"]["cursor"], "shape", where.modeNormal.get().cursor.cursorShape);
+            loadFromEntry(child["normal_mode"]["cursor"], "blinking", where.modeNormal.get().cursor.cursorDisplay);
+            loadFromEntry(child["normal_mode"]["cursor"], "blinking_interval", where.modeNormal.get().cursor.cursorBlinkInterval);
+        }
+        if (child["visual_mode"] && child["visual_mode"]["cursor"])
+        {
+            loadFromEntry(child["visual_mode"]["cursor"], "shape", where.modeVisual.get().cursor.cursorShape);
+            loadFromEntry(child["visual_mode"]["cursor"], "blinking", where.modeVisual.get().cursor.cursorDisplay);
+            loadFromEntry(child["visual_mode"]["cursor"], "blinking_interval", where.modeVisual.get().cursor.cursorBlinkInterval);
+            loadFromEntry(child["visual_mode"]["cursor"], "blinking_interval", where.modeVisual.get().cursor.cursorBlinkInterval);
+        }
         loadFromEntry(child, "vi_mode_highlight_timeout", where.highlightTimeout);
         loadFromEntry(child, "vi_mode_scrolloff", where.modalCursorScrollOff);
         if (child["status_line"])
         {
             loadFromEntry(child["status_line"], "position", where.statusDisplayPosition);
-            loadFromEntry(child["status_line"],
-                          "sync_to_window_title",
-                          where.syncWindowTitleWithHostWritableStatusDisplay);
+            loadFromEntry(child["status_line"], "sync_to_window_title", where.syncWindowTitleWithHostWritableStatusDisplay);
             loadFromEntry(child["status_line"], "display", where.initialStatusDisplayType);
         }
         if (child["background"])
@@ -368,6 +358,7 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, TerminalProf
             loadFromEntry(child["background"], "opacity", where.backgroundOpacity);
             loadFromEntry(child["background"], "blur", where.backgroundBlur);
         }
+        // clang-format on
 
         loadFromEntry(child, "colors", where.colors);
 
@@ -384,14 +375,17 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, TerminalProf
     }
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtbackend::ColorPalette& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
+                                     std::string const& entry,
+                                     vtbackend::ColorPalette& where)
 {
     logger()("color palette loading {}", entry);
     auto child = node[entry];
     if (!child) // can not load directly from config file
     {
 
-        logger()("color paletter not found inside config file, checking colorschemes directory {} \n ", entry);
+        logger()("color paletter not found inside config file, checking colorschemes directory {} \n ",
+                 entry);
         auto const filePath = configFile.remove_filename() / "colorschemes" / (entry + ".yml");
         auto fileContents = readFile(filePath);
         if (!fileContents)
@@ -410,12 +404,11 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtbackend::C
     }
 
     logger()("*** loading background_image");
-    if (child["background_image"])
-        if (child["background_image"]["path"]) // ensure that path exist
-        {
-            where.backgroundImage = std::make_shared<vtbackend::BackgroundImage>();
-            loadFromEntry(child, "background_image", where.backgroundImage);
-        }
+    if (child["background_image"] && child["background_image"]["path"]) // ensure that path exist
+    {
+        where.backgroundImage = std::make_shared<vtbackend::BackgroundImage>();
+        loadFromEntry(child, "background_image", where.backgroundImage);
+    }
 
     logger()("*** loading hyperlink_decoration");
     if (child["hyperlink_decoration"])
@@ -442,10 +435,12 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtbackend::C
     loadWithLog("input_method_editor", where.inputMethodEditor);
 
     logger()("*** loading pallete");
-    loadFromEntry(child,"", where.palette);
+    loadFromEntry(child, "", where.palette);
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtbackend::ColorPalette::Palette& colors)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
+                                     std::string const& entry,
+                                     vtbackend::ColorPalette::Palette& colors)
 {
     auto const loadColorMap = [&](YAML::Node const& parent, std::string const& key, size_t offset) -> bool {
         auto node = parent[key];
@@ -498,9 +493,9 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtbackend::C
     }
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node,
-                                std::string entry,
-                                vtbackend::CellRGBColorAndAlphaPair& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
+                                     std::string const& entry,
+                                     vtbackend::CellRGBColorAndAlphaPair& where)
 {
     auto const child = node[entry];
     if (child)
@@ -512,7 +507,9 @@ void YAMLVisitor::loadFromEntry(YAML::Node node,
     }
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtbackend::RGBColorPair& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
+                                     std::string const& entry,
+                                     vtbackend::RGBColorPair& where)
 {
     auto const child = node[entry];
     if (child)
@@ -522,7 +519,9 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtbackend::R
     }
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtbackend::RGBColor& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
+                                     std::string const& entry,
+                                     vtbackend::RGBColor& where)
 {
     auto const child = node[entry];
     if (child)
@@ -530,7 +529,9 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtbackend::R
     logger()("Loading entry: {}, value {}", entry, where);
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtbackend::CursorColor& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
+                                     std::string const& entry,
+                                     vtbackend::CursorColor& where)
 {
     auto const child = node[entry];
     if (child)
@@ -540,7 +541,9 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtbackend::C
     }
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtbackend::CellRGBColor& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
+                                     std::string const& entry,
+                                     vtbackend::CellRGBColor& where)
 {
     auto parseModifierKey = [&](std::string const& key) -> std::optional<vtbackend::CellRGBColor> {
         auto const literal = crispy::toUpper(key);
@@ -561,9 +564,9 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtbackend::C
     }
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node,
-                                std::string entry,
-                                std::shared_ptr<vtbackend::BackgroundImage> where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
+                                     std::string const& entry,
+                                     std::shared_ptr<vtbackend::BackgroundImage>& where)
 {
     logger()("Loading background_image");
 
@@ -581,7 +584,7 @@ void YAMLVisitor::loadFromEntry(YAML::Node node,
     }
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, Permission& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node, std::string const& entry, Permission& where)
 {
     auto parseModifierKey = [](std::string const& key) -> std::optional<Permission> {
         auto const literal = crispy::toLower(key);
@@ -594,16 +597,16 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, Permission& 
         return std::nullopt;
     };
 
-    auto const child = node[entry];
-    if (child)
+    if (auto const child = node[entry]; child)
     {
-        auto opt = parseModifierKey(child.as<std::string>());
-        if (opt.has_value())
+        if (auto const opt = parseModifierKey(child.as<std::string>()); opt.has_value())
             where = opt.value();
     }
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtbackend::StatusDisplayType& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
+                                     std::string const& entry,
+                                     vtbackend::StatusDisplayType& where)
 {
     auto parseModifierKey = [&](std::string const& key) -> std::optional<vtbackend::StatusDisplayType> {
         auto const literal = crispy::toLower(key);
@@ -615,27 +618,27 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtbackend::S
         return std::nullopt;
     };
 
-    auto const child = node[entry];
-    if (child)
+    if (auto const child = node[entry])
     {
-        auto opt = parseModifierKey(child.as<std::string>());
-        if (opt.has_value())
+        if (auto const opt = parseModifierKey(child.as<std::string>()); opt.has_value())
             where = opt.value();
     }
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtbackend::Opacity& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
+                                     std::string const& entry,
+                                     vtbackend::Opacity& where)
 {
-    auto const child = node[entry];
-    if (child)
+    if (auto const child = node[entry])
     {
-
         where = vtbackend::Opacity(static_cast<unsigned>(255 * std::clamp(child.as<float>(), 0.0f, 1.0f)));
     }
     logger()("Loading entry: {}, value {}", entry, static_cast<unsigned>(where));
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtrasterizer::Decorator& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
+                                     std::string const& entry,
+                                     vtrasterizer::Decorator& where)
 {
     auto parseModifierKey = [](std::string const& key) -> std::optional<vtrasterizer::Decorator> {
         auto const literal = crispy::toLower(key);
@@ -658,8 +661,7 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtrasterizer
         return std::nullopt;
     };
 
-    auto const child = node[entry];
-    if (child)
+    if (auto const child = node[entry])
     {
         auto opt = parseModifierKey(child.as<std::string>());
         if (opt.has_value())
@@ -667,11 +669,9 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtrasterizer
     }
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, Bell& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node, std::string const& entry, Bell& where)
 {
-
-    auto const child = node[entry];
-    if (child)
+    if (auto const child = node[entry])
     {
         loadFromEntry(child, "alert", where.alert);
         loadFromEntry(child, "sound", where.sound);
@@ -679,10 +679,11 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, Bell& where)
     }
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtpty::SshHostConfig& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
+                                     std::string const& entry,
+                                     vtpty::SshHostConfig& where)
 {
-    auto const child = node[entry];
-    if (child)
+    if (auto const child = node[entry])
     {
         loadFromEntry(child, "host", where.hostname);
         loadFromEntry(child, "port", where.port);
@@ -694,43 +695,45 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtpty::SshHo
     }
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtpty::Process::ExecInfo& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
+                                     std::string const& entry,
+                                     vtpty::Process::ExecInfo& where)
 {
     // TODO(pr)
-    auto const child = node[entry];
-    if (child)
+    if (auto const child = node[entry])
         where.program = child.as<std::string>();
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtbackend::LineOffset& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
+                                     std::string const& entry,
+                                     vtbackend::LineOffset& where)
 {
-    auto const child = node[entry];
-    if (child)
+    if (auto const child = node[entry])
         where = vtbackend::LineOffset(child.as<int>());
     logger()("Loading entry: {}, value {}", entry, where.template as<int>());
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, WindowMargins& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node, std::string const& entry, WindowMargins& where)
 {
-    auto const child = node[entry];
-    if (child)
+    if (auto const child = node[entry])
     {
         loadFromEntry(child, "horizontal", where.horizontal);
         loadFromEntry(child, "vertical", where.vertical);
     }
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtpty::PageSize& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node, std::string const& entry, vtpty::PageSize& where)
 {
-    auto const child = node[entry];
-    if (child)
+    if (auto const child = node[entry])
     {
         loadFromEntry(child, "lines", where.lines);
         loadFromEntry(child, "columns", where.columns);
     }
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtbackend::VTType& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
+                                     std::string const& entry,
+                                     vtbackend::VTType& where)
 {
     auto parseModifierKey = [](std::string const& key) -> std::optional<vtbackend::VTType> {
         auto const literal = crispy::toLower(key);
@@ -749,8 +752,7 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtbackend::V
         return std::nullopt;
     };
 
-    auto const child = node[entry];
-    if (child)
+    if (auto const child = node[entry])
     {
         auto opt = parseModifierKey(child.as<std::string>());
         if (opt.has_value())
@@ -758,25 +760,26 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtbackend::V
     }
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtbackend::LineCount& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
+                                     std::string const& entry,
+                                     vtbackend::LineCount& where)
 {
-    auto const child = node[entry];
-    if (child)
+    if (auto const child = node[entry])
         where = vtbackend::LineCount(child.as<int>());
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, text::font_size& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node, std::string const& entry, text::font_size& where)
 {
-    auto const child = node[entry];
-    if (child)
+    if (auto const child = node[entry])
         where = text::font_size(child.as<double>());
     logger()("Loading entry: {}, value {}", entry, where.pt);
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, text::font_slant& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
+                                     std::string const& entry,
+                                     text::font_slant& where)
 {
-    auto const child = node[entry];
-    if (child)
+    if (auto const child = node[entry])
     {
         auto opt = text::make_font_slant(child.as<std::string>());
         if (opt.has_value())
@@ -784,10 +787,11 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, text::font_s
     }
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, text::font_weight& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
+                                     std::string const& entry,
+                                     text::font_weight& where)
 {
-    auto const child = node[entry];
-    if (child)
+    if (auto const child = node[entry])
     {
         auto opt = text::make_font_weight(child.as<std::string>());
         if (opt.has_value())
@@ -795,10 +799,11 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, text::font_w
     }
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, text::font_description& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
+                                     std::string const& entry,
+                                     text::font_description& where)
 {
-    auto const child = node[entry];
-    if (child)
+    if (auto const child = node[entry])
     {
         if (child.IsMap())
         {
@@ -814,12 +819,11 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, text::font_d
     }
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, ColorConfig& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node, std::string const& entry, ColorConfig& where)
 {
-    auto const child = node[entry];
-    logger()("Loading entry: {}", entry);
-    if (child)
+    if (auto const child = node[entry])
     {
+        logger()("Loading entry: {}", entry);
         if (child.IsMap())
         {
             where = DualColorConfig { .colorSchemeLight = child["light"].as<std::string>(),
@@ -840,7 +844,9 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, ColorConfig&
     }
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtrasterizer::TextShapingEngine& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
+                                     std::string const& entry,
+                                     vtrasterizer::TextShapingEngine& where)
 {
     auto constexpr NativeTextShapingEngine =
 #if defined(_WIN32)
@@ -864,8 +870,7 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtrasterizer
         return std::nullopt;
     };
 
-    auto const child = node[entry];
-    if (child)
+    if (auto const child = node[entry])
     {
         auto opt = parseModifierKey(child.as<std::string>());
         if (opt.has_value())
@@ -873,7 +878,9 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtrasterizer
     }
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtrasterizer::FontLocatorEngine& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
+                                     std::string const& entry,
+                                     vtrasterizer::FontLocatorEngine& where)
 {
     auto constexpr NativeFontLocator =
 #if defined(_WIN32)
@@ -899,8 +906,7 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtrasterizer
         return std::nullopt;
     };
 
-    auto const child = node[entry];
-    if (child)
+    if (auto const child = node[entry])
     {
         auto opt = parseModifierKey(child.as<std::string>());
         if (opt.has_value())
@@ -908,7 +914,9 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtrasterizer
     }
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, text::render_mode& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
+                                     std::string const& entry,
+                                     text::render_mode& where)
 {
     auto parseModifierKey = [&](std::string const& key) -> std::optional<text::render_mode> {
         auto const literal = crispy::toLower(key);
@@ -930,8 +938,7 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, text::render
         return std::nullopt;
     };
 
-    auto const child = node[entry];
-    if (child)
+    if (auto const child = node[entry])
     {
         auto opt = parseModifierKey(child.as<std::string>());
         if (opt.has_value())
@@ -939,10 +946,11 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, text::render
     }
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtrasterizer::FontDescriptions& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
+                                     std::string const& entry,
+                                     vtrasterizer::FontDescriptions& where)
 {
-    auto const child = node[entry];
-    if (child)
+    if (auto const child = node[entry])
     {
 
         loadFromEntry(child, "size", where.size);
@@ -977,7 +985,9 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtrasterizer
     }
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, ScrollBarPosition& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
+                                     std::string const& entry,
+                                     ScrollBarPosition& where)
 {
     auto parseModifierKey = [&](std::string const& key) -> std::optional<ScrollBarPosition> {
         auto const literal = crispy::toLower(key);
@@ -991,8 +1001,7 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, ScrollBarPos
         return std::nullopt;
     };
 
-    auto const child = node[entry];
-    if (child)
+    if (auto const child = node[entry])
     {
         auto opt = parseModifierKey(child.as<std::string>());
         if (opt.has_value())
@@ -1000,7 +1009,9 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, ScrollBarPos
     }
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtbackend::StatusDisplayPosition& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
+                                     std::string const& entry,
+                                     vtbackend::StatusDisplayPosition& where)
 {
     auto parseModifierKey = [&](std::string const& key) -> std::optional<vtbackend::StatusDisplayPosition> {
         auto const literal = crispy::toLower(key);
@@ -1012,8 +1023,7 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtbackend::S
         return std::nullopt;
     };
 
-    auto const child = node[entry];
-    if (child)
+    if (auto const child = node[entry])
     {
         auto opt = parseModifierKey(child.as<std::string>());
         if (opt.has_value())
@@ -1021,41 +1031,35 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtbackend::S
     }
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, std::string& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node, std::string const& entry, std::string& where)
 {
-    auto const child = node[entry];
-    if (child)
+    if (auto const child = node[entry])
     {
         where = child.as<std::string>();
         logger()("Loading entry: {}, value {}", entry, where);
     }
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtbackend::ImageSize& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
+                                     std::string const& entry,
+                                     vtbackend::ImageSize& where)
 {
 
-    auto const child = node[entry];
-    if (child)
+    if (auto const child = node[entry])
     {
         loadFromEntry(child, "max_width", where.width);
         loadFromEntry(child, "max_height", where.height);
     }
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, InputMappings& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node, std::string const& entry, InputMappings& where)
 {
 
-    auto const child = node[entry];
-
-    // YAML::Emitter em;
-    // em << node;
-    // std::cout << em.c_str() << std::endl;
-
-    if (child)
+    if (auto const child = node[entry])
     {
 
         // Clear default mappings if we are loading it
-        where = InputMappings {};
+        where = {};
         if (child.IsSequence())
         {
             for (auto&& mapping: child)
@@ -1093,11 +1097,11 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, InputMapping
     }
 }
 
-bool YAMLVisitor::tryAddMouse(std::vector<MouseInputMapping>& bindings,
-                              vtbackend::MatchModes modes,
-                              vtbackend::Modifiers modifier,
-                              YAML::Node const& node,
-                              actions::Action action)
+bool YAMLConfigReader::tryAddMouse(std::vector<MouseInputMapping>& bindings,
+                                   vtbackend::MatchModes modes,
+                                   vtbackend::Modifiers modifier,
+                                   YAML::Node const& node,
+                                   actions::Action action)
 {
     auto mouseButton = parseMouseButton(node);
     if (!mouseButton)
@@ -1107,7 +1111,7 @@ bool YAMLVisitor::tryAddMouse(std::vector<MouseInputMapping>& bindings,
     return true;
 }
 
-std::optional<vtbackend::MouseButton> YAMLVisitor::parseMouseButton(YAML::Node const& node)
+std::optional<vtbackend::MouseButton> YAMLConfigReader::parseMouseButton(YAML::Node const& node)
 {
     using namespace std::literals::string_view_literals;
     if (!node)
@@ -1130,11 +1134,11 @@ std::optional<vtbackend::MouseButton> YAMLVisitor::parseMouseButton(YAML::Node c
     return std::nullopt;
 }
 
-bool YAMLVisitor::tryAddKey(InputMappings& inputMappings,
-                            vtbackend::MatchModes modes,
-                            vtbackend::Modifiers modifier,
-                            YAML::Node const& node,
-                            actions::Action action)
+bool YAMLConfigReader::tryAddKey(InputMappings& inputMappings,
+                                 vtbackend::MatchModes modes,
+                                 vtbackend::Modifiers modifier,
+                                 YAML::Node const& node,
+                                 actions::Action action)
 {
     if (!node)
         return false;
@@ -1162,7 +1166,8 @@ bool YAMLVisitor::tryAddKey(InputMappings& inputMappings,
     return true;
 }
 
-std::optional<std::variant<vtbackend::Key, char32_t>> YAMLVisitor::parseKeyOrChar(std::string const& name)
+std::optional<std::variant<vtbackend::Key, char32_t>> YAMLConfigReader::parseKeyOrChar(
+    std::string const& name)
 {
     using namespace vtbackend::ControlCode;
     using namespace std::literals::string_view_literals;
@@ -1194,7 +1199,7 @@ std::optional<std::variant<vtbackend::Key, char32_t>> YAMLVisitor::parseKeyOrCha
     return std::nullopt;
 }
 
-std::optional<vtbackend::Key> YAMLVisitor::parseKey(std::string const& name)
+std::optional<vtbackend::Key> YAMLConfigReader::parseKey(std::string const& name)
 {
     using vtbackend::Key;
     using namespace std::literals::string_view_literals;
@@ -1271,12 +1276,13 @@ std::optional<vtbackend::Key> YAMLVisitor::parseKey(std::string const& name)
     return std::nullopt;
 }
 
-std::optional<vtbackend::MatchModes> YAMLVisitor::parseMatchModes(YAML::Node nodeYAML)
+std::optional<vtbackend::MatchModes> YAMLConfigReader::parseMatchModes(YAML::Node const& nodeYAML)
 {
-    auto node = nodeYAML["mode"];
     using vtbackend::MatchModes;
+
+    auto node = nodeYAML["mode"];
     if (!node)
-        return vtbackend::MatchModes {};
+        return MatchModes {};
     if (!node.IsScalar())
         return std::nullopt;
 
@@ -1326,7 +1332,7 @@ std::optional<vtbackend::MatchModes> YAMLVisitor::parseMatchModes(YAML::Node nod
     return matchModes;
 }
 
-std::optional<vtbackend::Modifiers> YAMLVisitor::parseModifier(YAML::Node nodeYAML)
+std::optional<vtbackend::Modifiers> YAMLConfigReader::parseModifier(YAML::Node const& nodeYAML)
 {
     using vtbackend::Modifier;
     auto node = nodeYAML["mods"];
@@ -1352,7 +1358,7 @@ std::optional<vtbackend::Modifiers> YAMLVisitor::parseModifier(YAML::Node nodeYA
     return mods;
 }
 
-std::optional<vtbackend::Modifiers> YAMLVisitor::parseModifierKey(std::string const& key)
+std::optional<vtbackend::Modifiers> YAMLConfigReader::parseModifierKey(std::string const& key)
 {
     using vtbackend::Modifier;
     auto const upperKey = crispy::toUpper(key);
@@ -1373,10 +1379,9 @@ std::optional<vtbackend::Modifiers> YAMLVisitor::parseModifierKey(std::string co
     return std::nullopt;
 }
 
-std::optional<actions::Action> YAMLVisitor::parseAction(YAML::Node node)
+std::optional<actions::Action> YAMLConfigReader::parseAction(YAML::Node const& node)
 {
-    auto actionNode = node["action"];
-    if (actionNode)
+    if (auto actionNode = node["action"])
     {
         auto actionName = actionNode.as<std::string>();
         auto actionOpt = actions::fromString(actionName);
@@ -1475,7 +1480,9 @@ std::optional<actions::Action> YAMLVisitor::parseAction(YAML::Node node)
     return std::nullopt;
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, contour::config::SelectionAction& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
+                                     std::string const& entry,
+                                     contour::config::SelectionAction& where)
 {
     auto const child = node[entry];
     if (child)
@@ -1501,7 +1508,9 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, contour::con
     }
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtbackend::CursorShape& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
+                                     std::string const& entry,
+                                     vtbackend::CursorShape& where)
 {
 
     auto parseModifierKey = [&](std::string const& key) -> std::optional<vtbackend::CursorShape> {
@@ -1529,11 +1538,11 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtbackend::C
     }
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtbackend::Modifiers& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
+                                     std::string const& entry,
+                                     vtbackend::Modifiers& where)
 {
-
-    auto const child = node[entry];
-    if (child)
+    if (auto const child = node[entry])
     {
         auto opt = parseModifierKey(child.as<std::string>());
         if (opt.has_value())
@@ -1541,9 +1550,10 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtbackend::M
     }
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtbackend::CursorDisplay& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
+                                     std::string const& entry,
+                                     vtbackend::CursorDisplay& where)
 {
-
     auto parseModifierKey = [&](std::string const& key) -> std::optional<vtbackend::CursorDisplay> {
         auto const upperKey = crispy::toUpper(key);
         logger()("Loading entry: {}, value {}", entry, upperKey);
@@ -1554,8 +1564,7 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtbackend::C
         return std::nullopt;
     };
 
-    auto const child = node[entry];
-    if (child)
+    if (auto const child = node[entry])
     {
         auto opt = parseModifierKey(child.as<std::string>());
         if (opt.has_value())
@@ -1563,18 +1572,20 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtbackend::C
     }
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, crispy::lru_capacity& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
+                                     std::string const& entry,
+                                     crispy::lru_capacity& where)
 {
-    auto const child = node[entry];
-    if (child)
+    if (auto const child = node[entry])
         where = crispy::lru_capacity(child.as<uint32_t>());
     logger()("Loading entry: {}, value {}", entry, where.value);
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtbackend::MaxHistoryLineCount& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
+                                     std::string const& entry,
+                                     vtbackend::MaxHistoryLineCount& where)
 {
-    auto const child = node[entry];
-    if (child)
+    if (auto const child = node[entry])
     {
         auto value = child.as<int>();
         if (value == -1)
@@ -1588,22 +1599,24 @@ void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, vtbackend::M
         logger()("Loading entry: {}, value {}", entry, std::get<vtbackend::LineCount>(where));
 }
 
-void YAMLVisitor::loadFromEntry(YAML::Node node, std::string entry, crispy::strong_hashtable_size& where)
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
+                                     std::string const& entry,
+                                     crispy::strong_hashtable_size& where)
 {
-    auto const child = node[entry];
-    if (child)
+    if (auto const child = node[entry])
         where = crispy::strong_hashtable_size(child.as<uint32_t>());
     logger()("Loading entry: {}, value {}", entry, where.value);
 }
 
 std::string YAMLConfigWriter::createString(Config const& c)
 {
-    std::string doc {};
-    auto process = [&](auto v) {
+    auto doc = std::string {};
+
+    auto const process = [&](auto v) {
         doc.append(format(addOffset(v.documentation, Offset::levels * 4), v.get()));
     };
 
-    auto processWithDoc = [&](auto&& docString, auto... val) {
+    auto const processWithDoc = [&](auto&& docString, auto... val) {
         doc.append(fmt::format(
             fmt::runtime(format(addOffset(std::string(docString.value), Offset::levels * 4), val...)),
             fmt::arg("comment", "#")));
@@ -1613,7 +1626,7 @@ std::string YAMLConfigWriter::createString(Config const& c)
 
     // inside renderer:
     {
-        Offset _;
+        auto const _ = Offset {};
         doc.append("renderer: \n");
         process(c.renderingBackend);
         process(c.textureAtlasDirectMapping);
@@ -1636,22 +1649,19 @@ std::string YAMLConfigWriter::createString(Config const& c)
     // inside images:
     doc.append("\nimages: \n");
 
-    {
-        Offset _;
+    scoped([&]() {
         process(c.sixelScrolling);
         process(c.maxImageColorRegisters);
         process(c.maxImageSize);
-    }
+    });
 
     // inside profiles:
     doc.append(fmt::format(fmt::runtime(c.profiles.documentation), fmt::arg("comment", "#")));
-    {
-        Offset _;
+    scoped([&]() {
         for (auto&& [name, entry]: c.profiles.get())
         {
             doc.append(fmt::format("    {}: \n", name));
-            {
-                Offset _;
+            scoped([&]() {
                 process(entry.shell);
                 process(entry.maximized);
                 process(entry.fullscreen);
@@ -1667,38 +1677,32 @@ std::string YAMLConfigWriter::createString(Config const& c)
                 process(entry.margins);
                 // history: section
                 doc.append(addOffset("history:\n", Offset::levels * 4));
-                {
-                    Offset _;
+                scoped([&]() {
                     process(entry.maxHistoryLineCount);
                     process(entry.historyScrollMultiplier);
                     process(entry.autoScrollOnUpdate);
-                }
+                });
 
                 // scrollbar: section
                 doc.append(addOffset("scrollbar:\n", Offset::levels * 4));
-                {
-                    Offset _;
+                scoped([&]() {
                     process(entry.scrollbarPosition);
                     process(entry.hideScrollbarInAltScreen);
-                }
+                });
 
                 // mouse: section
                 doc.append(addOffset("mouse:\n", Offset::levels * 4));
-                {
-                    Offset _;
-                    process(entry.mouseHideWhileTyping);
-                }
+                scoped([&]() { process(entry.mouseHideWhileTyping); });
 
                 //  permissions: section
                 doc.append(addOffset("\n"
                                      "permissions:\n",
                                      Offset::levels * 4));
-                {
-                    Offset _;
+                scoped([&]() {
                     process(entry.changeFont);
                     process(entry.captureBuffer);
                     process(entry.displayHostWritableStatusLine);
-                }
+                });
 
                 process(entry.highlightDoubleClickedWord);
                 process(entry.fonts);
@@ -1713,39 +1717,35 @@ std::string YAMLConfigWriter::createString(Config const& c)
                 doc.append(addOffset("\n"
                                      "status_line:\n",
                                      Offset::levels * 4));
-                {
-                    Offset _;
+                scoped([&]() {
                     process(entry.initialStatusDisplayType);
                     process(entry.statusDisplayPosition);
                     process(entry.syncWindowTitleWithHostWritableStatusDisplay);
-                }
+                });
 
                 doc.append(addOffset("\n"
                                      "background:\n",
                                      Offset::levels * 4));
-                {
-                    Offset _;
+                scoped([&]() {
                     process(entry.backgroundOpacity);
                     process(entry.backgroundBlur);
-                }
+                });
 
                 process(entry.colors);
 
                 doc.append(addOffset("\n"
                                      "hyperlink_decoration:\n",
                                      Offset::levels * 4));
-                {
-                    Offset _;
+                scoped([&]() {
                     process(entry.hyperlinkDecorationNormal);
                     process(entry.hyperlinkDecorationHover);
-                }
-            }
+                });
+            });
         }
-    }
+    });
 
     doc.append(fmt::format(fmt::runtime(c.colorschemes.documentation), fmt::arg("comment", "#")));
-    {
-        Offset _;
+    scoped([&]() {
         for (auto&& [name, entry]: c.colorschemes.get())
         {
             doc.append(fmt::format("    {}: \n", name));
@@ -1884,26 +1884,19 @@ std::string YAMLConfigWriter::createString(Config const& c)
                 doc.append(addOffset("", Offset::levels * 4));
             }
         }
-    }
+    });
 
     doc.append(fmt::format(fmt::runtime(c.inputMappings.documentation), fmt::arg("comment", "#")));
-    {
-        Offset _;
+    scoped([&]() {
         for (auto&& entry: c.inputMappings.get().keyMappings)
-        {
             doc.append(addOffset(format(entry), Offset::levels * 4));
-        }
 
         for (auto&& entry: c.inputMappings.get().charMappings)
-        {
             doc.append(addOffset(format(entry), Offset::levels * 4));
-        }
 
         for (auto&& entry: c.inputMappings.get().mouseMappings)
-        {
             doc.append(addOffset(format(entry), Offset::levels * 4));
-        }
-    }
+    });
     return doc;
 }
 

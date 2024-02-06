@@ -40,6 +40,11 @@
 #include <yaml-cpp/ostream_wrapper.h>
 #include <yaml-cpp/yaml.h>
 
+#include <range/v3/to_container.hpp>
+#include <range/v3/view/concat.hpp>
+#include <range/v3/view/join.hpp>
+#include <range/v3/view/transform.hpp>
+
 #include <chrono>
 #include <cstdint>
 #include <exception>
@@ -193,15 +198,27 @@ struct ConfigEntry
 
     std::string documentation = doc.value;
     constexpr ConfigEntry(): _value {} {}
-    constexpr ConfigEntry(T&& in): _value { std::forward<T>(in) } {}
+    constexpr explicit ConfigEntry(T&& in): _value { std::forward<T>(in) } {}
 
     template <typename F>
-    constexpr ConfigEntry(F in): _value { static_cast<T>(in) }
+    constexpr explicit ConfigEntry(F in): _value { static_cast<T>(in) }
     {
     }
 
     [[nodiscard]] constexpr T const& get() const { return _value; }
     [[nodiscard]] constexpr T& get() { return _value; }
+
+    constexpr ConfigEntry& operator=(T const& value)
+    {
+        _value = value;
+        return *this;
+    }
+
+    constexpr ConfigEntry& operator=(T&& value) noexcept
+    {
+        _value = std::move(value);
+        return *this;
+    }
 
     constexpr ConfigEntry(ConfigEntry const&) = default;
     constexpr ConfigEntry& operator=(ConfigEntry const&) = default;
@@ -263,26 +280,31 @@ const inline vtrasterizer::FontDescriptions defaultFont = vtrasterizer::FontDesc
 
 struct TerminalProfile
 {
-
-    ConfigEntry<vtpty::Process::ExecInfo, documentation::Shell> shell {
-        { .program = "bash", .arguments = {}, .workingDirectory = "", .env = {} }
-    };
+    ConfigEntry<vtpty::Process::ExecInfo, documentation::Shell> shell { {
+        .program =
+            []() {
+                auto const program = vtpty::Process::loginShell(true);
+                return program                    // NB: sadly can't be a temporary
+                       | ranges::views::join(' ') //
+                       | ranges::to<std::string>();
+            }(),
+        .arguments = {},
+        .workingDirectory = "",
+        .env = {},
+    } };
     ConfigEntry<vtpty::SshHostConfig, documentation::SshHostConfig> ssh {};
     ConfigEntry<bool, documentation::Maximized> maximized { false };
-    ConfigEntry<bool, documentation::Fullscreen> fullscreen {
-        false,
-    };
+    ConfigEntry<bool, documentation::Fullscreen> fullscreen { false };
     ConfigEntry<bool, documentation::ShowTitleBar> showTitleBar { true };
-    ConfigEntry<bool, "\n"> sizeIndicatorOnResize { true };
+    ConfigEntry<bool, "TODO(pr)\n"> sizeIndicatorOnResize { true };
     ConfigEntry<bool, documentation::MouseHideWhileTyping> mouseHideWhileTyping { true };
-    ConfigEntry<vtbackend::LineOffset, documentation::CopyLastMarkRangeOffset> copyLastMarkRangeOffset = {
-        0
-    };
-    ConfigEntry<std::string, documentation::WMClass> wmClass = { "contour" };
-    ConfigEntry<WindowMargins, documentation::Margins> margins = { { 0, 0 } };
-    ConfigEntry<vtbackend::PageSize, documentation::TerminalSize> terminalSize {
-        { vtbackend::LineCount(25), vtbackend::ColumnCount(80) }
-    };
+    ConfigEntry<vtbackend::LineOffset, documentation::CopyLastMarkRangeOffset> copyLastMarkRangeOffset { 0 };
+    ConfigEntry<std::string, documentation::WMClass> wmClass { "contour" };
+    ConfigEntry<WindowMargins, documentation::Margins> margins { { 0, 0 } };
+    ConfigEntry<vtbackend::PageSize, documentation::TerminalSize> terminalSize { {
+        vtbackend::LineCount(25),
+        vtbackend::ColumnCount(80),
+    } };
     ConfigEntry<vtbackend::VTType, documentation::TerminalId> terminalId { vtbackend::VTType::VT525 };
     ConfigEntry<vtbackend::MaxHistoryLineCount, documentation::MaxHistoryLineCount> maxHistoryLineCount {
         vtbackend::LineCount(1000)
@@ -298,7 +320,7 @@ struct TerminalProfile
     ConfigEntry<bool, documentation::SyncWindowTitleWithHostWritableStatusDisplay>
         syncWindowTitleWithHostWritableStatusDisplay { false };
     ConfigEntry<bool, documentation::HideScrollbarInAltScreen> hideScrollbarInAltScreen { true };
-    ConfigEntry<bool, documentation::Dummy> optionKeyAsAlt { false }; // TODO(pr)
+    ConfigEntry<bool, documentation::Dummy> optionKeyAsAlt { false };
     ConfigEntry<bool, documentation::AutoScrollOnUpdate> autoScrollOnUpdate { true };
     ConfigEntry<vtrasterizer::FontDescriptions, documentation::Fonts> fonts { defaultFont };
     ConfigEntry<Permission, documentation::CaptureBuffer> captureBuffer { Permission::Ask };
@@ -313,14 +335,16 @@ struct TerminalProfile
     };
     ConfigEntry<InputModeConfig, documentation::ModeInsert> modeInsert { CursorConfig {
         vtbackend::CursorShape::Bar, vtbackend::CursorDisplay::Steady, std::chrono::milliseconds { 500 } } };
-    ConfigEntry<InputModeConfig, documentation::ModeNormal> modeNormal { CursorConfig {
-        vtbackend::CursorShape::Block,
-        vtbackend::CursorDisplay::Steady,
-        std::chrono::milliseconds { 500 } } };
-    ConfigEntry<InputModeConfig, documentation::ModeVisual> modeVisual { CursorConfig {
-        vtbackend::CursorShape::Block,
-        vtbackend::CursorDisplay::Steady,
-        std::chrono::milliseconds { 500 } } };
+    ConfigEntry<InputModeConfig, documentation::ModeNormal> modeNormal {
+        CursorConfig { vtbackend::CursorShape::Block,
+                       vtbackend::CursorDisplay::Steady,
+                       std::chrono::milliseconds { 500 } },
+    };
+    ConfigEntry<InputModeConfig, documentation::ModeVisual> modeVisual {
+        CursorConfig { vtbackend::CursorShape::Block,
+                       vtbackend::CursorDisplay::Steady,
+                       std::chrono::milliseconds { 500 } },
+    };
     ConfigEntry<std::chrono::milliseconds, documentation::SmoothLineScrolling> smoothLineScrolling { 100 };
     ConfigEntry<std::chrono::milliseconds, documentation::HighlightTimeout> highlightTimeout { 100 };
     ConfigEntry<bool, documentation::HighlightDoubleClickerWord> highlightDoubleClickedWord { true };
@@ -331,27 +355,25 @@ struct TerminalProfile
         0xFF) };
     ConfigEntry<bool, documentation::BackgroundBlur> backgroundBlur { false };
     ConfigEntry<std::optional<contour::display::ShaderConfig>, documentation::Dummy>
-        backgroundShader {}; // TODO(pr)
+        backgroundShader {}; // TODO: We can probably delete this functionality
     ConfigEntry<std::optional<contour::display::ShaderConfig>, documentation::Dummy>
-        textShader {}; // TODO(pr)
-    ConfigEntry<vtrasterizer::Decorator, "normal: {} \n"> hyperlinkDecorationNormal {
+        textShader {}; // TODO: We can probably delete this functionality
+    ConfigEntry<vtrasterizer::Decorator, "normal: {}\n"> hyperlinkDecorationNormal {
         vtrasterizer::Decorator::DottedUnderline
     };
-    ConfigEntry<vtrasterizer::Decorator, "hover: {} \n"> hyperlinkDecorationHover {
+    ConfigEntry<vtrasterizer::Decorator, "hover: {}\n"> hyperlinkDecorationHover {
         vtrasterizer::Decorator::Underline
     };
     ConfigEntry<Bell, documentation::Bell> bell { { .sound = "default", .alert = true, .volume = 1.0f } };
-    ConfigEntry<std::map<vtbackend::DECMode, bool>, "fmt formatted doc {} \n"> frozenModes {};
+    ConfigEntry<std::map<vtbackend::DECMode, bool>, "fmt formatted doc {}\n"> frozenModes {}; // TODO(pr)
 };
 
-const inline TerminalProfile defaultProfile = TerminalProfile {};
 const inline InputMappings defaultInputMappings = InputMappings {
     .keyMappings {
         KeyInputMapping { .modes { vtbackend::MatchModes {} },
                           .modifiers { vtbackend::Modifiers { vtbackend::Modifier::Alt } },
                           .input = vtbackend::Key::Enter,
                           .binding = { { actions::ToggleFullscreen {} } } },
-
         KeyInputMapping { .modes = []() consteval -> vtbackend::MatchModes {
                              auto mods = vtbackend::MatchModes();
                              mods.enable(vtbackend::MatchModes::Select);
@@ -599,13 +621,12 @@ const inline InputMappings defaultInputMappings = InputMappings {
                             .binding = { { actions::ScrollPageUp {} } } },
     }
 };
-const inline vtbackend::ColorPalette defaultColorSchemes = vtbackend::ColorPalette {};
 
 struct Config
 {
-    std::filesystem::path configFile { "none" };
+    std::filesystem::path configFile {};
     ConfigEntry<bool, documentation::Live> live { false };
-    ConfigEntry<std::string, documentation::PlatformPlugin> platformPlugin { "xcb" };
+    ConfigEntry<std::string, documentation::PlatformPlugin> platformPlugin { "" };
     ConfigEntry<RenderingBackend, documentation::RenderingBackend> renderingBackend {
         RenderingBackend::Default
     };
@@ -617,11 +638,11 @@ struct Config
     ConfigEntry<int, documentation::PTYBufferObjectSize> ptyBufferObjectSize { 1024 * 1024 };
     ConfigEntry<bool, documentation::ReflowOnResize> reflowOnResize { true };
     ConfigEntry<std::unordered_map<std::string, vtbackend::ColorPalette>, documentation::ColorSchemes>
-        colorschemes { { { "default", defaultColorSchemes } } };
+        colorschemes { { { "default", vtbackend::ColorPalette {} } } };
     ConfigEntry<std::unordered_map<std::string, TerminalProfile>, documentation::Profiles> profiles {
-        { { "main", defaultProfile } }
+        { { "main", TerminalProfile {} } }
     };
-    ConfigEntry<std::string, "default_profile: {} \n"> defaultProfileName { "main" };
+    ConfigEntry<std::string, "default_profile: {}"> defaultProfileName { "main" };
     ConfigEntry<std::string, documentation::WordDelimiters> wordDelimiters {
         " /\\\\()\\\"'-.,:;<>~!@#$%^&*+=[]{}~?|│"
     };
@@ -673,14 +694,14 @@ struct Config
     }
 };
 
-struct YAMLVisitor
+struct YAMLConfigReader
 {
-
     std::filesystem::path configFile;
     YAML::Node doc;
-    logstore::category logger;
+    logstore::category const& logger;
 
-    YAMLVisitor(std::string const& filename, auto log): configFile(filename), logger { log }
+    YAMLConfigReader(std::string const& filename, logstore::category const& log):
+        configFile(filename), logger { log }
     {
         try
         {
@@ -688,7 +709,7 @@ struct YAMLVisitor
         }
         catch (std::exception const& e)
         {
-            errorLog()("Configuration file is corrupted. {} \n Default config will be loaded", e.what());
+            errorLog()("Configuration file is corrupted. {}\nDefault config will be loaded.", e.what());
         }
     }
 
@@ -713,14 +734,14 @@ struct YAMLVisitor
     }
 
     template <typename T>
-    void loadFromEntry(YAML::Node, std::string, T&)
+    void loadFromEntry(YAML::Node const&, std::string const&, T&)
     {
-        static_assert(false);
+        static_assert(false, "No overload for this type");
     }
 
     template <typename T>
-        requires std::is_scalar<T>::value
-    void loadFromEntry(YAML::Node node, std::string entry, T& where)
+        requires std::is_scalar_v<T>
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, T& where)
     {
         auto const child = node[entry];
         if (child)
@@ -729,7 +750,7 @@ struct YAMLVisitor
     }
 
     template <typename V, typename T>
-    void loadFromEntry(YAML::Node node, std::string entry, boxed::boxed<V, T>& where)
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, boxed::boxed<V, T>& where)
     {
         auto const child = node[entry];
         if (child)
@@ -739,29 +760,27 @@ struct YAMLVisitor
 
     // Used for terminal profile and color scheme loading
     template <typename T>
-    void loadFromEntry(YAML::Node node, std::string entry, std::unordered_map<std::string, T>& where)
+    void loadFromEntry(YAML::Node const& node,
+                       std::string const& entry,
+                       std::unordered_map<std::string, T>& where)
     {
-        auto const child = node[entry];
-
-        if (child)
+        if (auto const child = node[entry]; child && child.IsMap())
         {
-            if (child.IsMap())
+            for (auto entry: child)
             {
-                for (auto entry = child.begin(); entry != child.end(); ++entry)
-                {
-                    logger()("Loading map with entry: {}", entry->first.as<std::string>());
-                    auto const& name = entry->first.as<std::string>();
-                    loadFromEntry(child, name, where[name]);
-                }
+                auto const name = entry.first.as<std::string>();
+                logger()("Loading map with entry: {}", name);
+                loadFromEntry(child, entry.first.as<std::string>(), where[name]);
             }
         }
     }
 
     template <typename T>
-    void loadFromEntry(YAML::Node node, std::string entry, std::chrono::duration<long, T>& where)
+    void loadFromEntry(YAML::Node const& node,
+                       std::string const& entry,
+                       std::chrono::duration<long, T>& where)
     {
-        auto const child = node[entry];
-        if (child)
+        if (auto const child = node[entry]; child)
             where = std::chrono::milliseconds(child.as<int>());
         logger()("Loading entry: {}, value {}", entry, where.count());
     }
@@ -786,69 +805,62 @@ struct YAMLVisitor
             modes, modifier, input, ActionList { std::move(action) } });
     }
 
-    void loadFromEntry(YAML::Node node, std::string entry, std::filesystem::path& where);
-    void loadFromEntry(YAML::Node node, std::string entry, RenderingBackend& where);
-    void loadFromEntry(YAML::Node node, std::string entry, crispy::strong_hashtable_size& where);
-    void loadFromEntry(YAML::Node node, std::string entry, vtbackend::MaxHistoryLineCount& where);
-    void loadFromEntry(YAML::Node node, std::string entry, crispy::lru_capacity& where);
-    void loadFromEntry(YAML::Node node, std::string entry, vtbackend::CursorDisplay& where);
-    void loadFromEntry(YAML::Node node, std::string entry, vtbackend::Modifiers& where);
-    void loadFromEntry(YAML::Node node, std::string entry, vtbackend::CursorShape& where);
-    void loadFromEntry(YAML::Node node, std::string entry, contour::config::SelectionAction& where);
-    void loadFromEntry(YAML::Node node, std::string entry, InputMappings& where);
-    void loadFromEntry(YAML::Node node, std::string entry, vtbackend::ImageSize& where);
-    void loadFromEntry(YAML::Node node, std::string entry, std::set<std::string>& where)
-    {
-        // TODO(pr)
-    }
-    void loadFromEntry(YAML::Node node, std::string entry, std::string& where);
-    void loadFromEntry(YAML::Node node, std::string entry, vtbackend::StatusDisplayPosition& where);
-    void loadFromEntry(YAML::Node node, std::string entry, ScrollBarPosition& where);
-    void loadFromEntry(YAML::Node node, std::string entry, vtrasterizer::FontDescriptions& where);
-    void loadFromEntry(YAML::Node node, std::string entry, text::render_mode& where);
-    void loadFromEntry(YAML::Node node, std::string entry, vtrasterizer::FontLocatorEngine& where);
-    void loadFromEntry(YAML::Node node, std::string entry, vtrasterizer::TextShapingEngine& where);
-    void loadFromEntry(YAML::Node node, std::string entry, ColorConfig& where);
-    void loadFromEntry(YAML::Node node, std::string entry, text::font_description& where);
-    void loadFromEntry(YAML::Node node, std::string entry, std::vector<text::font_feature>& where)
-    {
-        // TODO(pr)
-    }
-    void loadFromEntry(YAML::Node node, std::string entry, text::font_weight& where);
-    void loadFromEntry(YAML::Node node, std::string entry, text::font_slant& where);
-    void loadFromEntry(YAML::Node node, std::string entry, text::font_size& where);
-    void loadFromEntry(YAML::Node node, std::string entry, vtbackend::LineCount& where);
-    void loadFromEntry(YAML::Node node, std::string entry, vtbackend::VTType& where);
-    void loadFromEntry(YAML::Node node, std::string entry, vtpty::PageSize& where);
-    void loadFromEntry(YAML::Node node, std::string entry, WindowMargins& where);
-    void loadFromEntry(YAML::Node node, std::string entry, vtbackend::LineOffset& where);
-    void loadFromEntry(YAML::Node node, std::string entry, vtpty::Process::ExecInfo& where);
-    void loadFromEntry(YAML::Node node, std::string entry, vtpty::SshHostConfig& where);
-    void loadFromEntry(YAML::Node node, std::string entry, Bell& where);
-    void loadFromEntry(YAML::Node node, std::string entry, std::map<vtbackend::DECMode, bool>& where)
-    {
-        // TODO(pr)
-    }
-    void loadFromEntry(YAML::Node node, std::string entry, vtrasterizer::Decorator& where);
-    void loadFromEntry(YAML::Node node, std::string entry, vtbackend::Opacity& where);
-    void loadFromEntry(YAML::Node node, std::string entry, vtbackend::StatusDisplayType& where);
-    void loadFromEntry(YAML::Node node, std::string entry, Permission& where);
-    void loadFromEntry(YAML::Node node, std::string entry, std::shared_ptr<vtbackend::BackgroundImage> where);
-    void loadFromEntry(YAML::Node node, std::string entry, vtbackend::CellRGBColor& where);
-    void loadFromEntry(YAML::Node node, std::string entry, vtbackend::CursorColor& where);
-    void loadFromEntry(YAML::Node node, std::string entry, vtbackend::RGBColor& where);
-    void loadFromEntry(YAML::Node node, std::string entry, vtbackend::RGBColorPair& where);
-    void loadFromEntry(YAML::Node node, std::string entry, vtbackend::CellRGBColorAndAlphaPair& where);
-    void loadFromEntry(YAML::Node node, std::string entry, vtbackend::ColorPalette::Palette& colors);
-    void loadFromEntry(YAML::Node node, std::string entry, vtbackend::ColorPalette& where);
-    void loadFromEntry(YAML::Node node, std::string entry, TerminalProfile& where);
+    // clang-format off
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, std::filesystem::path& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, RenderingBackend& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, crispy::strong_hashtable_size& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, vtbackend::MaxHistoryLineCount& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, crispy::lru_capacity& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, vtbackend::CursorDisplay& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, vtbackend::Modifiers& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, vtbackend::CursorShape& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, contour::config::SelectionAction& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, InputMappings& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, vtbackend::ImageSize& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, std::set<std::string>& where) {} // TODO(pr)
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, std::string& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, vtbackend::StatusDisplayPosition& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, ScrollBarPosition& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, vtrasterizer::FontDescriptions& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, text::render_mode& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, vtrasterizer::FontLocatorEngine& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, vtrasterizer::TextShapingEngine& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, ColorConfig& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, text::font_description& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, std::vector<text::font_feature>& where) {} // TODO(pr)
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, text::font_weight& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, text::font_slant& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, text::font_size& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, vtbackend::LineCount& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, vtbackend::VTType& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, vtpty::PageSize& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, WindowMargins& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, vtbackend::LineOffset& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, vtpty::Process::ExecInfo& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, vtpty::SshHostConfig& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, Bell& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, std::map<vtbackend::DECMode, bool>& where) { } // TODO(pr)
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, vtrasterizer::Decorator& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, vtbackend::Opacity& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, vtbackend::StatusDisplayType& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, Permission& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, std::shared_ptr<vtbackend::BackgroundImage>& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, vtbackend::CellRGBColor& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, vtbackend::CursorColor& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, vtbackend::RGBColor& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, vtbackend::RGBColorPair& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, vtbackend::CellRGBColorAndAlphaPair& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, vtbackend::ColorPalette::Palette& colors);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, vtbackend::ColorPalette& where);
+    void loadFromEntry(YAML::Node const& node, std::string const& entry, TerminalProfile& where);
+    // clang-format on
 
     void load(Config& c);
 
-    std::optional<actions::Action> parseAction(YAML::Node node);
+    std::optional<actions::Action> parseAction(YAML::Node const& node);
     std::optional<vtbackend::Modifiers> parseModifierKey(std::string const& key);
-    std::optional<vtbackend::Modifiers> parseModifier(YAML::Node nodeYAML);
-    static std::optional<vtbackend::MatchModes> parseMatchModes(YAML::Node nodeYAML);
+    std::optional<vtbackend::Modifiers> parseModifier(YAML::Node const& nodeYAML);
+    static std::optional<vtbackend::MatchModes> parseMatchModes(YAML::Node const& nodeYAML);
     std::optional<vtbackend::Key> parseKey(std::string const& name);
     std::optional<std::variant<vtbackend::Key, char32_t>> parseKeyOrChar(std::string const& name);
 
@@ -867,7 +879,6 @@ struct YAMLVisitor
 
 struct YAMLConfigWriter
 {
-
     std::string addOffset(std::string const& doc, size_t off)
     {
         auto offset = std::string(off, ' ');
@@ -876,10 +887,17 @@ struct YAMLConfigWriter
 
     struct Offset
     {
-        static int levels;
+        static inline int levels = 0;
         Offset() { levels++; }
         ~Offset() { --levels; }
     };
+
+    template <typename F>
+    void scoped(F lambda)
+    {
+        auto const _ = Offset {};
+        lambda();
+    }
 
     std::string createString(Config const& c);
 
@@ -899,7 +917,6 @@ struct YAMLConfigWriter
 
     [[nodiscard]] std::string format(CharInputMapping v)
     {
-
         auto actionAndModes = fmt::format(fmt::runtime(" action: {} }}"), v.binding[0]);
         if (v.modes.any())
         {
@@ -920,7 +937,7 @@ struct YAMLConfigWriter
                            actionAndModes);
     }
 
-    [[nodiscard]] std::string format(std::string_view doc, vtrasterizer::FontDescriptions v)
+    [[nodiscard]] std::string format(std::string_view doc, vtrasterizer::FontDescriptions const& v)
     {
         return format(doc,
                       v.size.pt,
@@ -942,14 +959,10 @@ struct YAMLConfigWriter
         return format(doc, v.count());
     }
 
-    [[nodiscard]] std::string format(std::string_view doc, vtpty::Process::ExecInfo v)
+    [[nodiscard]] std::string format(std::string_view doc, vtpty::Process::ExecInfo const& v)
     {
         auto args = std::string { "[" };
-        for (auto&& arg: v.arguments)
-        {
-            args.append(arg);
-            args.append(",");
-        }
+        args.append(v.arguments | ranges::views::join(", ") | ranges::to<std::string>);
         args.append("]");
         return format(doc, v.program, args);
     }
@@ -974,7 +987,6 @@ struct YAMLConfigWriter
 
     [[nodiscard]] std::string format(std::string_view doc, ColorConfig& v)
     {
-
         if (auto* simple = get_if<SimpleColorConfig>(&v))
             return format(doc, simple->colorScheme);
         else if (auto* dual = get_if<DualColorConfig>(&v))
@@ -1003,17 +1015,17 @@ struct YAMLConfigWriter
 
     [[nodiscard]] std::string format(std::string_view doc, InputModeConfig v)
     {
-        auto shapeType = v.cursor.cursorShape;
-        auto shape = "block";
-        switch (shapeType)
-        {
-            case vtbackend::CursorShape::Block: break;
-            case vtbackend::CursorShape::Rectangle: shape = "rectangle"; break;
-            case vtbackend::CursorShape::Underscore: shape = "underscore"; break;
-            case vtbackend::CursorShape::Bar: shape = "bar"; break;
-        };
-        auto blinking = v.cursor.cursorDisplay == vtbackend::CursorDisplay::Blink ? true : false;
-        auto blinkingInterval = v.cursor.cursorBlinkInterval.count();
+        auto const shape = [v]() -> std::string_view {
+            switch (v.cursor.cursorShape)
+            {
+                case vtbackend::CursorShape::Block: return "block";
+                case vtbackend::CursorShape::Rectangle: return "rectangle";
+                case vtbackend::CursorShape::Underscore: return "underscore";
+                case vtbackend::CursorShape::Bar: return "bar";
+            };
+        }();
+        auto const blinking = v.cursor.cursorDisplay == vtbackend::CursorDisplay::Blink ? true : false;
+        auto const blinkingInterval = v.cursor.cursorBlinkInterval.count();
         return format(doc, shape, blinking, blinkingInterval);
     }
 };
@@ -1036,23 +1048,18 @@ std::string defaultConfigFilePath();
 // {{{ fmtlib custom formatter support
 
 template <>
-struct fmt::formatter<contour::config::Permission>
+struct fmt::formatter<contour::config::Permission>: formatter<std::string_view>
 {
-    template <typename ParseContext>
-    constexpr auto parse(ParseContext& ctx)
+    auto format(contour::config::Permission value, format_context& ctx)
     {
-        return ctx.begin();
-    }
-    template <typename FormatContext>
-    auto format(contour::config::Permission perm, FormatContext& ctx)
-    {
-        switch (perm)
+        string_view name;
+        switch (value)
         {
-            case contour::config::Permission::Allow: return fmt::format_to(ctx.out(), "allow");
-            case contour::config::Permission::Deny: return fmt::format_to(ctx.out(), "deny");
-            case contour::config::Permission::Ask: return fmt::format_to(ctx.out(), "ask");
+            case contour::config::Permission::Allow: name = "allow"; break;
+            case contour::config::Permission::Deny: name = "deny"; break;
+            case contour::config::Permission::Ask: name = "ask"; break;
         }
-        return ctx.out();
+        return formatter<string_view>::format(name, ctx);
     }
 };
 
@@ -1267,7 +1274,7 @@ struct fmt::formatter<contour::config::RenderingBackend>
             case contour::config::RenderingBackend::Software: return fmt::format_to(ctx.out(), "software");
         }
         return fmt::format_to(ctx.out(), "{}", "none");
-    };
+    }
 };
 
 template <>
@@ -1287,6 +1294,6 @@ struct fmt::formatter<contour::config::ConfigEntry<T, D>>
     auto format(contour::config::ConfigEntry<T, D> const& c, fmt::format_context& ctx)
     {
         return fmt::format_to(ctx.out(), "{}", c.get());
-    };
+    }
 };
 // }}}
