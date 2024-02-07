@@ -159,8 +159,8 @@
     ],
     "testPresets": [
         {
-            "name": "default",
-            "configurePreset": "linux-clang",
+            "name": "linux-clang-debug",
+            "configurePreset": "linux-clang-debug",
             "output": {"outputOnFailure": true},
             "execution": {
                 "noTestsAction": "error",
