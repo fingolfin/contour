@@ -574,7 +574,7 @@ jobs:
             echo "QTVER=6" >> "$GITHUB_OUTPUT"
           fi
       - name: "install dependencies"
-        run: sudo env QTVER="${{ matrix.qt_version }}" ./scripts/install-deps.sh
+        run: sudo env QTVER="${{ matrix.qt_version }}" SYSDEP_ASSUME_YES=ON ./scripts/install-deps.sh
       - name: "Post-fix embedded dependency permissions."
         run: sudo find _deps/sources -exec chown $UID {} \;
       - name: Install GCC
@@ -587,6 +587,8 @@ jobs:
         if: ${{ startsWith(matrix.compiler, 'Clang') }}
         run: sudo apt install -y clang-tidy-${{ steps.extract_matrix.outputs.CC_VERSION }}
 
+      - name: Install CMake
+        uses: ssrobins/install-cmake@v1
       - name: "create build directory"
         run: mkdir build
       - name: CMake version
@@ -614,11 +616,11 @@ jobs:
               -DCMAKE_INSTALL_PREFIX="/usr" \
               -DCONTOUR_QT_VERSION=${{ matrix.qt_version }} \
               -DLIBUNICODE_UCD_BASE_DIR=$PWD/_ucd \
-              --presets linux-debug
+              --preset linux-debug
       - name: "build"
-        run: cmake --build --presets linux-debug -- -j3
+        run: cmake --build --preset linux-debug -- -j3
       - name: "tests"
-        run: cmake --build --presets linux-debug --target test
+        run: cmake --build --preset linux-debug --target test
       - name: "Upload unit tests"
         if: ${{ matrix.compiler == 'GCC 10' && matrix.cxx == '20' && matrix.qt_version == '6' }}
         uses: actions/upload-artifact@v3
@@ -805,6 +807,8 @@ jobs:
         run: sudo find _deps/sources -exec chown $UID {} \;
       - name: "create build directory"
         run: mkdir build
+      - name: Install CMake
+        uses: ssrobins/install-cmake@v1
       - name: CMake version
         run: cmake --version
       - name: "cmake"
