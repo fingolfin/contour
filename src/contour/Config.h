@@ -1066,202 +1066,134 @@ struct fmt::formatter<contour::config::Permission>: formatter<std::string_view>
 };
 
 template <>
-struct fmt::formatter<vtbackend::Opacity>
+struct fmt::formatter<vtbackend::Opacity> : formatter<float>
 {
-    template <typename ParseContext>
-    constexpr auto parse(ParseContext& ctx)
+    auto format(vtbackend::Opacity value, format_context& ctx)
     {
-        return ctx.begin();
-    }
-    template <typename FormatContext>
-    auto format(vtbackend::Opacity value, FormatContext& ctx)
-    {
-        return fmt::format_to(ctx.out(), "{}", static_cast<int>(value) / std::numeric_limits<uint8_t>::max());
+        return formatter<float>::format(static_cast<int>(value) / std::numeric_limits<uint8_t>::max(), ctx);
     }
 };
 
 template <>
-struct fmt::formatter<crispy::strong_hashtable_size>
+struct fmt::formatter<crispy::strong_hashtable_size>: formatter<int>
 {
-    template <typename ParseContext>
-    constexpr auto parse(ParseContext& ctx)
+    auto format(crispy::strong_hashtable_size value, format_context& ctx)
     {
-        return ctx.begin();
-    }
-    template <typename FormatContext>
-    auto format(crispy::strong_hashtable_size value, FormatContext& ctx)
-    {
-        return fmt::format_to(ctx.out(), "{}", value.value);
+        return formatter<int>::format(value.value, ctx);
     }
 };
 
+
 template <>
-struct fmt::formatter<vtbackend::StatusDisplayPosition>
+struct fmt::formatter<vtbackend::StatusDisplayPosition>: formatter<std::string_view>
 {
-    template <typename ParseContext>
-    constexpr auto parse(ParseContext& ctx)
+    auto format(vtbackend::StatusDisplayPosition value, format_context& ctx)
     {
-        return ctx.begin();
-    }
-    template <typename FormatContext>
-    auto format(vtbackend::StatusDisplayPosition value, FormatContext& ctx)
-    {
+        string_view name;
         switch (value)
         {
             case vtbackend::StatusDisplayPosition::Bottom: return fmt::format_to(ctx.out(), "Bottom");
             case vtbackend::StatusDisplayPosition::Top: return fmt::format_to(ctx.out(), "Top");
         }
+        return formatter<string_view>::format(name, ctx);
     }
 };
 
 template <>
-struct fmt::formatter<vtbackend::BackgroundImage>
+struct fmt::formatter<vtbackend::BackgroundImage>: formatter<std::string_view>
 {
-    template <typename ParseContext>
-    constexpr auto parse(ParseContext& ctx)
-    {
-        return ctx.begin();
-    }
-    template <typename FormatContext>
-    auto format(vtbackend::BackgroundImage value, FormatContext& ctx)
+    auto format(vtbackend::BackgroundImage value, format_context& ctx)
     {
         if (auto loc = std::get_if<std::filesystem::path>(&value.location))
-            return fmt::format_to(ctx.out(), loc);
-        return fmt::format_to(ctx.out(), "Image");
+            return formatter<string_view>::format(loc->string(), ctx);
+        return formatter<string_view>::format("Image", ctx);
     }
 };
 
+
 template <>
-struct fmt::formatter<vtbackend::StatusDisplayType>
+struct fmt::formatter<vtbackend::StatusDisplayType>: formatter<std::string_view>
 {
-    template <typename ParseContext>
-    constexpr auto parse(ParseContext& ctx)
+    auto format(vtbackend::StatusDisplayType value, format_context& ctx)
     {
-        return ctx.begin();
-    }
-    template <typename FormatContext>
-    auto format(vtbackend::StatusDisplayType value, FormatContext& ctx)
-    {
+        string_view name;
         switch (value)
         {
-            case vtbackend::StatusDisplayType::None: return fmt::format_to(ctx.out(), "none");
-            case vtbackend::StatusDisplayType::Indicator: return fmt::format_to(ctx.out(), "indicator");
-            case vtbackend::StatusDisplayType::HostWritable:
-                return fmt::format_to(ctx.out(), "host writable");
+            case vtbackend::StatusDisplayType::None: name = "none"; break;
+            case vtbackend::StatusDisplayType::Indicator: name = "indicator"; break;
+            case vtbackend::StatusDisplayType::HostWritable: name = "host writable"; break;
         }
-    }
-};
-
-template <>
-struct fmt::formatter<crispy::lru_capacity>
-{
-    template <typename ParseContext>
-    constexpr auto parse(ParseContext& ctx)
-    {
-        return ctx.begin();
-    }
-    template <typename FormatContext>
-    auto format(crispy::lru_capacity value, FormatContext& ctx)
-    {
-        return fmt::format_to(ctx.out(), "{}", value.value);
+        return formatter<string_view>::format(name, ctx);
     }
 };
 
 
 template <>
-struct fmt::formatter<std::unordered_map<std::basic_string<char>, vtbackend::ColorPalette>>
+struct fmt::formatter<crispy::lru_capacity>: formatter<int>
 {
-    template <typename ParseContext>
-    constexpr auto parse(ParseContext& ctx)
+    auto format(crispy::lru_capacity value, format_context& ctx)
     {
-        return ctx.begin();
-    }
-    template <typename FormatContext>
-    auto format(std::unordered_map<std::basic_string<char>, vtbackend::ColorPalette> value,
-                FormatContext& ctx)
-    {
-        return fmt::format_to(ctx.out(), "map color palette : TODO(pr)");
+        return formatter<int>::format(value.value, ctx);
     }
 };
 
 template <>
-struct fmt::formatter<std::set<std::basic_string<char>>>
+struct fmt::formatter<std::set<std::basic_string<char>>>: formatter<std::string_view>
 {
-    template <typename ParseContext>
-    constexpr auto parse(ParseContext& ctx)
+    auto format(std::set<std::basic_string<char>> value, format_context& ctx)
     {
-        return ctx.begin();
-    }
-    template <typename FormatContext>
-    auto format(std::set<std::basic_string<char>> value, FormatContext& ctx)
-    {
-        return fmt::format_to(ctx.out(), "set string :TODO(pr)");
+        auto result = std::string { };
+        result.append(value | ranges::views::join(", ") | ranges::to<std::string>);
+        return formatter<std::string_view>::format(result, ctx);
     }
 };
 
 template <>
-struct fmt::formatter<contour::config::SelectionAction>
+struct fmt::formatter<contour::config::SelectionAction>: formatter<std::string_view>
 {
-    template <typename ParseContext>
-    constexpr auto parse(ParseContext& ctx)
+    auto format(contour::config::SelectionAction value, format_context& ctx)
     {
-        return ctx.begin();
-    }
-    using SelectionAction = contour::config::SelectionAction;
-    template <typename FormatContext>
-    auto format(SelectionAction value, FormatContext& ctx)
-    {
+        std::string_view name;
         switch (value)
         {
-            case SelectionAction::CopyToClipboard: return fmt::format_to(ctx.out(), "CopyToClipboard");
-            case SelectionAction::CopyToSelectionClipboard:
-                return fmt::format_to(ctx.out(), "CopyToSelectionClipboard");
-            case SelectionAction::Nothing: return fmt::format_to(ctx.out(), "Waiting");
+            case contour::config::SelectionAction::CopyToClipboard: name = "CopyToClipboard"; break;
+            case contour::config::SelectionAction::CopyToSelectionClipboard: name = "CopyToSelectionClipboard"; break;
+            case contour::config::SelectionAction::Nothing: name = "Waiting"; break;
         }
-        return fmt::format_to(ctx.out(), "{}", static_cast<unsigned>(value));
+        return formatter<std::string_view>::format(name, ctx);
     }
 };
 
+
 template <>
-struct fmt::formatter<contour::config::ScrollBarPosition>
+struct fmt::formatter<contour::config::ScrollBarPosition>: formatter<std::string_view>
 {
-    template <typename ParseContext>
-    constexpr auto parse(ParseContext& ctx)
+    auto format(contour::config::ScrollBarPosition value, format_context& ctx)
     {
-        return ctx.begin();
-    }
-    using ScrollBarPosition = contour::config::ScrollBarPosition;
-    template <typename FormatContext>
-    auto format(ScrollBarPosition value, FormatContext& ctx)
-    {
+        std::string_view name;
         switch (value)
         {
-            case ScrollBarPosition::Hidden: return fmt::format_to(ctx.out(), "Hidden");
-            case ScrollBarPosition::Left: return fmt::format_to(ctx.out(), "Left");
-            case ScrollBarPosition::Right: return fmt::format_to(ctx.out(), "Right");
+            case contour::config::ScrollBarPosition::Hidden: name = "Hidden"; break;
+            case contour::config::ScrollBarPosition::Left: name = "Left"; break;
+            case contour::config::ScrollBarPosition::Right: name = "Right"; break;
         }
-        return ctx.out();
+        return formatter<std::string_view>::format(name,ctx);
     }
 };
 
 template <>
-struct fmt::formatter<contour::config::RenderingBackend>
+struct fmt::formatter<contour::config::RenderingBackend>: formatter<std::string_view>
 {
-    template <typename ParseContext>
-    constexpr auto parse(ParseContext& ctx)
+    auto format(contour::config::RenderingBackend const& val, fmt::format_context& ctx)
     {
-        return ctx.begin();
-    }
-
-    static auto format(contour::config::RenderingBackend const& val, fmt::format_context& ctx)
-    {
+        std::string_view name;
         switch (val)
         {
-            case contour::config::RenderingBackend::Default: return fmt::format_to(ctx.out(), "default");
-            case contour::config::RenderingBackend::OpenGL: return fmt::format_to(ctx.out(), "OpenGL");
-            case contour::config::RenderingBackend::Software: return fmt::format_to(ctx.out(), "software");
+            case contour::config::RenderingBackend::Default: name = "default"; break;
+            case contour::config::RenderingBackend::OpenGL: name = "OpenGL"; break;
+            case contour::config::RenderingBackend::Software: name = "software"; break;
         }
-        return fmt::format_to(ctx.out(), "{}", "none");
+        return formatter<std::string_view>::format(name,ctx);
     }
 };
 
