@@ -2,40 +2,80 @@
     "version": 6,
     "configurePresets": [
         {
-            "name": "linux-clang",
-            "displayName": "Linux 64-bit (Clang)",
-            "description": "",
-            "condition": {
-                "type": "equals",
-                "lhs": "${hostSystemName}",
-                "rhs": "Linux"
-            },
-            "generator": "Ninja",
-            "binaryDir": "${sourceDir}/out/build/${presetName}",
+            "name": "contour-common",
+            "hidden": true,
+            "description": "Common settings for all configurations",
+            "binaryDir": "${sourceDir}/build/${presetName}",
             "cacheVariables": {
                 "PEDANTIC_COMPILER": "ON",
                 "PEDANTIC_COMPILER_WERROR": "ON",
-                "CMAKE_CXX_COMPILER": "g++",
                 "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}"
             }
         },
         {
-            "name": "linux-gcc",
-            "displayName": "Linux 64-bit (GCC)",
-            "description": "",
+            "name": "release",
+            "hidden": true,
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+            }
+        },
+        {
+            "name": "debug",
+            "hidden": true,
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CONTOUR_TESTING": "ON"
+            }
+        },
+        {
+            "name": "linux-common",
+            "hidden": true,
+            "inherits": "contour-common",
+            "generator": "Ninja",
             "condition": {
                 "type": "equals",
                 "lhs": "${hostSystemName}",
                 "rhs": "Linux"
             },
-            "generator": "Ninja",
-            "binaryDir": "${sourceDir}/out/build/${presetName}",
             "cacheVariables": {
-                "PEDANTIC_COMPILER": "ON",
-                "PEDANTIC_COMPILER_WERROR": "ON",
-                "CMAKE_CXX_COMPILER": "g++",
-                "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}"
+                "CMAKE_BUILD_TYPE": "Debug"
             }
+        },
+        {
+            "name": "linux-clang",
+            "hidden": true,
+            "inherits": "linux-common",
+            "cacheVariables": {
+                "CMAKE_CXX_COMPILER": "clang++"
+            }
+        },
+        {
+            "name": "linux-gcc",
+            "hidden": true,
+            "inherits": "linux-common",
+            "cacheVariables": {
+                "CMAKE_CXX_COMPILER": "g++"
+            }
+        },
+        {
+            "name": "linux-clang-release",
+            "displayName": "Linux 64-bit (Clang)",
+            "inherits": ["linux-clang", "release"]
+        },
+        {
+            "name": "linux-clang-debug",
+            "displayName": "Linux 64-bit (Clang)",
+            "inherits": ["linux-clang", "debug"]
+        },
+        {
+            "name": "linux-gcc-release",
+            "displayName": "Linux 64-bit (GCC)",
+            "inherits": ["linux-gcc", "release"]
+        },
+        {
+            "name": "linux-gcc-debug",
+            "displayName": "Linux 64-bit (GCC)",
+            "inherits": ["linux-gcc", "debug"]
         },
         {
             "name": "windows-x64",
@@ -63,16 +103,24 @@
     ],
     "buildPresets": [
         {
-            "name": "linux-clang-Debug",
+            "name": "linux-clang-debug",
             "displayName": "Linux 64-bit - Clang - Debug",
-            "configurePreset": "linux-clang",
-            "configuration": "Debug"
+            "configurePreset": "linux-clang-debug"
         },
         {
-            "name": "linux-clang-RelWithDebInfo",
+            "name": "linux-clang-release",
             "displayName": "Linux 64-bit - Clang - RelWithDebInfo",
-            "configurePreset": "linux-clang",
-            "configuration": "RelWithDebInfo"
+            "configurePreset": "linux-clang-release"
+        },
+        {
+            "name": "linux-gcc-debug",
+            "displayName": "Linux 64-bit - GCC - Debug",
+            "configurePreset": "linux-gcc-debug"
+        },
+        {
+            "name": "linux-gcc-release",
+            "displayName": "Linux 64-bit - GCC - RelWithDebInfo",
+            "configurePreset": "linux-gcc-release"
         },
         {
             "name": "windows-x64-Debug",
