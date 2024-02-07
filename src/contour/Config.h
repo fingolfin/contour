@@ -178,6 +178,12 @@ struct TerminalProfile
     ScrollBarPosition scrollbarPosition = ScrollBarPosition::Right;
     vtbackend::StatusDisplayPosition statusDisplayPosition = vtbackend::StatusDisplayPosition::Bottom;
     bool syncWindowTitleWithHostWritableStatusDisplay = false;
+    struct
+    {
+        std::string left;
+        std::string middle;
+        std::string right;
+    } indicatorStatusLine;
     bool hideScrollbarInAltScreen = true;
     bool optionKeyAsAlt = false;
 

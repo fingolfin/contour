@@ -1888,6 +1888,13 @@ namespace
         else
             logger()("Invalid value for config entry {}: {}", "status_line.display", strValue);
 
+        if (tryLoadChildRelative(usedKeys, profile, basePath, "status_line.indicator.left", strValue, logger))
+            terminalProfile.indicatorStatusLine.left = strValue;
+        if (tryLoadChildRelative(usedKeys, profile, basePath, "status_line.indicator.middle", strValue, logger))
+            terminalProfile.indicatorStatusLine.middle = strValue;
+        if (tryLoadChildRelative(usedKeys, profile, basePath, "status_line.indicator.right", strValue, logger))
+            terminalProfile.indicatorStatusLine.right = strValue;
+
         if (tryLoadChildRelative(usedKeys, profile, basePath, "status_line.position", strValue, logger))
         {
             auto const literal = toLower(strValue);

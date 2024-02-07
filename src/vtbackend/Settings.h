@@ -42,6 +42,12 @@ struct Settings
     unsigned maxImageRegisterCount = 256;
     StatusDisplayType statusDisplayType = StatusDisplayType::None;
     StatusDisplayPosition statusDisplayPosition = StatusDisplayPosition::Bottom;
+    struct
+    {
+        std::string left { "{VTType} │ {InputMode} {ProtectedMode:Bold,Text=(PROTECTED)}" };
+        std::string middle { "{Title}" };
+        std::string right { "{Clock}" };
+    } indicatorStatusLine;
     bool syncWindowTitleWithHostWritableStatusDisplay = true;
     CursorDisplay cursorDisplay = CursorDisplay::Steady;
     CursorShape cursorShape = CursorShape::Block;

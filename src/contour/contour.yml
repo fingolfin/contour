@@ -484,12 +484,17 @@ profiles:
             # Either none or indicator.
             # This only reflects the initial state of the status line, as it can
             # be changed at any time during runtime by the user or by an application.
-            display: none
+            display: indicator
 
             # Position to place the status line to, if it is to be shown.
             # This can be either value `top` or value `bottom`.
             # Default: bottom
             position: bottom
+
+            indicator:
+                left: "Hello {VTType}"
+                middle: "|> {Title} <|"
+                right: "{Clock}"
 
             # Synchronize the window title with the Host Writable status_line if
             # and only if the host writable status line was denied to be shown.

@@ -13,6 +13,7 @@
 #include <vtbackend/Viewport.h>
 #include <vtbackend/cell/CellConcept.h>
 #include <vtbackend/cell/CellConfig.h>
+#include <vtbackend/StatusLineBuilder.h>
 #include <vtbackend/primitives.h>
 
 #include <vtpty/Pty.h>
@@ -845,6 +846,8 @@ class Terminal
     gsl::not_null<ScreenBase*> _currentScreen;
     Viewport _viewport;
     TraceHandler _traceHandler;
+
+    StatusLineDefinition _indicatorStatusLineDefinition;
     // clang-format on
     // }}}
 
