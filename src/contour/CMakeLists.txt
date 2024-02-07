@@ -131,6 +131,9 @@ target_compile_definitions(contour PRIVATE
 # Disable all deprecated Qt functions prior to Qt 6.0
 target_compile_definitions(contour PRIVATE QT_DISABLE_DEPRECATED_BEFORE=0x050F00)
 
+# Create custom target to execute contour
+add_custom_target(run COMMAND contour)
+
 if(CONTOUR_PERF_STATS)
     target_compile_definitions(contour PRIVATE CONTOUR_PERF_STATS)
 endif()
