@@ -8,6 +8,8 @@
             "binaryDir": "${sourceDir}/build/${presetName}",
             "cacheVariables": {
                 "PEDANTIC_COMPILER": "ON",
+                "CONTOUR_INSTALL_TOOLS": "ON",
+                "LIBTERMINAL_BUILD_BENCH_HEADLESS": "ON",
                 "PEDANTIC_COMPILER_WERROR": "ON",
                 "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}"
             }
@@ -58,6 +60,16 @@
             }
         },
         {
+            "name": "linux-release",
+            "displayName": "Linux 64-bit",
+            "inherits": ["linux-common", "release"]
+        },
+        {
+            "name": "linux-debug",
+            "displayName": "Linux 64-bit",
+            "inherits": ["linux-common", "debug"]
+        },
+        {
             "name": "linux-clang-release",
             "displayName": "Linux 64-bit (Clang)",
             "inherits": ["linux-clang", "release"]
@@ -102,6 +114,16 @@
         }
     ],
     "buildPresets": [
+        {
+            "name": "linux-debug",
+            "displayName": "Linux 64-bit - Debug",
+            "configurePreset": "linux-debug"
+        },
+        {
+            "name": "linux-release",
+            "displayName": "Linux 64-bit - RelWithDebInfo",
+            "configurePreset": "linux-release"
+        },
         {
             "name": "linux-clang-debug",
             "displayName": "Linux 64-bit - Clang - Debug",
