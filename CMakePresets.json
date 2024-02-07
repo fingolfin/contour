@@ -90,6 +90,30 @@
             "inherits": ["linux-gcc", "debug"]
         },
         {
+            "name": "macos-common",
+            "inherits": "contour-common",
+            "generator": "Ninja",
+            "hidden": true,
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Darwin"
+            },
+            "cacheVariables": {
+                "CMAKE_PREFIX_PATH": "/opt/homebrew/opt/qt"
+            }
+        },
+        {
+            "name": "macos-debug",
+            "displayName": "MacOS - Debug",
+            "inherits": ["macos-common", "debug"]
+        },
+        {
+            "name": "macos-release",
+            "displayName": "MacOS - Release",
+            "inherits": ["macos-common", "release"]
+        },
+        {
             "name": "windows-x64",
             "displayName": "Visual Studio Enterprise 2022 Release - x64",
             "description": "Using compilers for Visual Studio 17 2022 (64-bit)",
@@ -145,6 +169,16 @@
             "configurePreset": "linux-gcc-release"
         },
         {
+            "name": "macos-debug",
+            "displayName": "MacOS/X - Debug",
+            "configurePreset": "macos-debug"
+        },
+        {
+            "name": "macos-release",
+            "displayName": "MacOS/X - Release",
+            "configurePreset": "macos-release"
+        },
+        {
             "name": "windows-x64-Debug",
             "displayName": "x64 - Debug",
             "configurePreset": "windows-x64",
@@ -166,6 +200,15 @@
                 "noTestsAction": "error",
                 "stopOnFailure": true
             }
+        },
+        {
+            "name": "macos-debug",
+            "configurePreset": "macos-debug",
+            "output": {"outputOnFailure": true},
+            "execution": {
+                "noTestsAction": "error",
+                "stopOnFailure": true
+            }
         }
     ],
     "packagePresets": [
@@ -178,6 +221,11 @@
             "name": "linux-gcc-release",
             "configurePreset": "linux-gcc-release",
             "generators": [ "TGZ" ]
+        },
+        {
+            "name": "macos-release",
+            "configurePreset": "macos-release",
+            "generators": [ "DMG" ]
         }
     ]
 }
