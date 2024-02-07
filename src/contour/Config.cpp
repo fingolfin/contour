@@ -7,17 +7,15 @@
 #include <crispy/StrongHash.h>
 #include <crispy/escape.h>
 
+#include <yaml-cpp/emitter.h>
+
 #include <QtCore/QFile>
 #include <QtGui/QOpenGLContext>
 
-#include <algorithm>
-#include <array>
 #include <fstream>
 #include <iostream>
-#include <stdexcept>
-#include <utility>
-#include <vector>
 
+#include "Config.h"
 #include "contour/ConfigDocumentation.h"
 
 #if defined(_WIN32)
@@ -140,7 +138,10 @@ std::string defaultConfigString()
 {
     Config config {};
     auto configString = YAMLConfigWriter().createString(config);
-    std::cout << configString;
+
+    auto logger = configLog;
+    logger()(configString);
+
     return configString;
 }
 
@@ -236,7 +237,7 @@ void YAMLConfigReader::load(Config& c)
     {
 
         loadFromEntry("platform_plugin", c.platformPlugin);
-        if (c.platformPlugin.get() == "auto")
+        if (c.platformPlugin.value() == "auto")
         {
             c.platformPlugin = "";
         }
@@ -249,6 +250,7 @@ void YAMLConfigReader::load(Config& c)
         loadFromEntry("spawn_new_process", c.spawnNewProcess);
         loadFromEntry("images.sixe_scrolling", c.sixelScrolling);
         loadFromEntry("reflow_on_resize", c.reflowOnResize);
+        loadFromEntry("experimental", c.experimentalFeatures);
         loadFromEntry("renderer.tile_direct_mapping", c.textureAtlasDirectMapping);
         loadFromEntry("renderer.tile_hastable_slots", c.textureAtlasHashtableSlots);
         loadFromEntry("renderer.tile_cache_count", c.textureAtlasTileCount);
@@ -256,7 +258,6 @@ void YAMLConfigReader::load(Config& c)
         loadFromEntry("on_mouse_select", c.onMouseSelection);
         loadFromEntry("mouse_block_selection_modifier", c.mouseBlockSelectionModifiers);
         loadFromEntry("images", c.maxImageSize);
-        loadFromEntry("", c.experimentalFeatures);
         loadFromEntry("profiles", c.profiles);
         // loadFromEntry("color_schemes", c.colorschemes); // NB: This is always loaded lazily
         loadFromEntry("input_mapping", c.inputMappings);
@@ -288,9 +289,9 @@ void YAMLConfigReader::loadFromEntry(YAML::Node const& node, std::string const& 
             // will create default shell if no shell nor ssh config is provided
             loadFromEntry(child, "shell", where.shell);
         }
-        loadFromEntry(child, "escape_sandbox", where.shell.get().escapeSandbox);
+        loadFromEntry(child, "escape_sandbox", where.shell.value().escapeSandbox);
         loadFromEntry(child, "copy_last_mark_range_offset", where.copyLastMarkRangeOffset);
-        loadFromEntry(child, "initial_working_directory", where.shell.get().workingDirectory);
+        loadFromEntry(child, "initial_working_directory", where.shell.value().workingDirectory);
         loadFromEntry(child, "show_title_bar", where.showTitleBar);
         loadFromEntry(child, "size_indicator_on_resize", where.sizeIndicatorOnResize);
         loadFromEntry(child, "fullscreen", where.fullscreen);
@@ -328,22 +329,22 @@ void YAMLConfigReader::loadFromEntry(YAML::Node const& node, std::string const& 
         loadFromEntry(child, "draw_bold_text_with_bright_colors", where.drawBoldTextWithBrightColors);
         if (child["cursor"])
         {
-            loadFromEntry(child["cursor"], "shape", where.modeInsert.get().cursor.cursorShape);
-            loadFromEntry(child["cursor"], "blinking", where.modeInsert.get().cursor.cursorDisplay);
-            loadFromEntry(child["cursor"], "blinking_interval", where.modeInsert.get().cursor.cursorBlinkInterval);
+            loadFromEntry(child["cursor"], "shape", where.modeInsert.value().cursor.cursorShape);
+            loadFromEntry(child["cursor"], "blinking", where.modeInsert.value().cursor.cursorDisplay);
+            loadFromEntry(child["cursor"], "blinking_interval", where.modeInsert.value().cursor.cursorBlinkInterval);
         }
         if (child["normal_mode"] && child["normal_mode"]["cursor"])
         {
-            loadFromEntry(child["normal_mode"]["cursor"], "shape", where.modeNormal.get().cursor.cursorShape);
-            loadFromEntry(child["normal_mode"]["cursor"], "blinking", where.modeNormal.get().cursor.cursorDisplay);
-            loadFromEntry(child["normal_mode"]["cursor"], "blinking_interval", where.modeNormal.get().cursor.cursorBlinkInterval);
+            loadFromEntry(child["normal_mode"]["cursor"], "shape", where.modeNormal.value().cursor.cursorShape);
+            loadFromEntry(child["normal_mode"]["cursor"], "blinking", where.modeNormal.value().cursor.cursorDisplay);
+            loadFromEntry(child["normal_mode"]["cursor"], "blinking_interval", where.modeNormal.value().cursor.cursorBlinkInterval);
         }
         if (child["visual_mode"] && child["visual_mode"]["cursor"])
         {
-            loadFromEntry(child["visual_mode"]["cursor"], "shape", where.modeVisual.get().cursor.cursorShape);
-            loadFromEntry(child["visual_mode"]["cursor"], "blinking", where.modeVisual.get().cursor.cursorDisplay);
-            loadFromEntry(child["visual_mode"]["cursor"], "blinking_interval", where.modeVisual.get().cursor.cursorBlinkInterval);
-            loadFromEntry(child["visual_mode"]["cursor"], "blinking_interval", where.modeVisual.get().cursor.cursorBlinkInterval);
+            loadFromEntry(child["visual_mode"]["cursor"], "shape", where.modeVisual.value().cursor.cursorShape);
+            loadFromEntry(child["visual_mode"]["cursor"], "blinking", where.modeVisual.value().cursor.cursorDisplay);
+            loadFromEntry(child["visual_mode"]["cursor"], "blinking_interval", where.modeVisual.value().cursor.cursorBlinkInterval);
+            loadFromEntry(child["visual_mode"]["cursor"], "blinking_interval", where.modeVisual.value().cursor.cursorBlinkInterval);
         }
         loadFromEntry(child, "vi_mode_highlight_timeout", where.highlightTimeout);
         loadFromEntry(child, "vi_mode_scrolloff", where.modalCursorScrollOff);
@@ -362,12 +363,12 @@ void YAMLConfigReader::loadFromEntry(YAML::Node const& node, std::string const& 
 
         loadFromEntry(child, "colors", where.colors);
 
-        if (auto* simple = get_if<SimpleColorConfig>(&(where.colors.get())))
-            simple->colors.useBrightColors = where.drawBoldTextWithBrightColors.get();
-        else if (auto* dual = get_if<DualColorConfig>(&(where.colors.get())))
+        if (auto* simple = get_if<SimpleColorConfig>(&(where.colors.value())))
+            simple->colors.useBrightColors = where.drawBoldTextWithBrightColors.value();
+        else if (auto* dual = get_if<DualColorConfig>(&(where.colors.value())))
         {
-            dual->darkMode.useBrightColors = where.drawBoldTextWithBrightColors.get();
-            dual->lightMode.useBrightColors = where.drawBoldTextWithBrightColors.get();
+            dual->darkMode.useBrightColors = where.drawBoldTextWithBrightColors.value();
+            dual->lightMode.useBrightColors = where.drawBoldTextWithBrightColors.value();
         }
 
         loadFromEntry(child, "hyperlink_decoration.normal", where.hyperlinkDecorationNormal);
@@ -396,23 +397,23 @@ void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
         child = YAML::Load(fileContents.value());
     }
 
-    logger()("*** loading default colors");
     if (child["default"])
     {
+        logger()("*** loading default colors");
         loadFromEntry(child["default"], "background", where.defaultBackground);
         loadFromEntry(child["default"], "foreground", where.defaultForeground);
     }
 
-    logger()("*** loading background_image");
     if (child["background_image"] && child["background_image"]["path"]) // ensure that path exist
     {
+        logger()("*** loading background_image");
         where.backgroundImage = std::make_shared<vtbackend::BackgroundImage>();
         loadFromEntry(child, "background_image", where.backgroundImage);
     }
 
-    logger()("*** loading hyperlink_decoration");
     if (child["hyperlink_decoration"])
     {
+        logger()("*** loading hyperlink_decoration");
         loadFromEntry(child["hyperlink_decoration"], "normal", where.hyperlinkDecoration.normal);
         loadFromEntry(child["hyperlink_decoration"], "hover", where.hyperlinkDecoration.hover);
     }
@@ -699,9 +700,94 @@ void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
                                      std::string const& entry,
                                      vtpty::Process::ExecInfo& where)
 {
-    // TODO(pr)
     if (auto const child = node[entry])
+    {
         where.program = child.as<std::string>();
+    }
+    if (auto args = node["arguments"]; args && args.IsSequence())
+    {
+        for (auto const& argNode: args)
+            where.arguments.emplace_back(argNode.as<string>());
+    }
+}
+
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
+                                     std::string const& entry,
+                                     std::vector<text::font_feature>& where)
+{
+    if (auto child = node[entry])
+    {
+        for (auto&& feature: child)
+        {
+            // Feature can be either 4 letter code or optionally ending with - to denote disabling it.
+            auto const [tag, enabled] = [&]() -> tuple<string, bool> {
+                auto value = feature.as<string>();
+                if (!value.empty())
+                {
+                    if (value[0] == '+')
+                        return { value.substr(1), true };
+                    if (value[0] == '-')
+                        return { value.substr(1), false };
+                }
+                return { std::move(value), true };
+            }();
+
+            if (tag.size() != 4)
+            {
+                logger()("Invalid font feature \"{}\". Font features are denoted as 4-letter codes.",
+                         feature.as<string>());
+                continue;
+            }
+            logger()("Enabling font feature {}{}{}{}", tag[0], tag[1], tag[2], tag[3]);
+            where.emplace_back(tag[0], tag[1], tag[2], tag[3], enabled);
+        }
+    }
+}
+
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
+                                     std::string const& entry,
+                                     std::set<std::string>& where)
+{
+    if (auto child = node[entry]; child && child.IsMap())
+    {
+        // entries of kind  feature_xyz: true
+        for (auto const& feature: child)
+        {
+            auto const isEnabled = feature.second.as<bool>();
+            if (isEnabled)
+            {
+                where.insert(feature.first.as<std::string>());
+                logger()("Added feature {}", feature.first.as<std::string>());
+            }
+        }
+    }
+}
+
+void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
+                                     std::string const& entry,
+                                     std::map<vtbackend::DECMode, bool>& where)
+{
+
+    if (auto frozenDecModes = node[entry]; frozenDecModes)
+    {
+        if (frozenDecModes.IsMap())
+        {
+            for (auto const& modeNode: frozenDecModes)
+            {
+                auto const modeNumber = std::stoi(modeNode.first.as<string>());
+                if (!vtbackend::isValidDECMode(modeNumber))
+                {
+                    logger()("Invalid frozen_dec_modes entry: {} (Invalid DEC mode number).", modeNumber);
+                    continue;
+                }
+                auto const mode = static_cast<vtbackend::DECMode>(modeNumber);
+                auto const frozenState = modeNode.second.as<bool>();
+                where[mode] = frozenState;
+            }
+        }
+        else
+            logger()("Invalid frozen_dec_modes entry.");
+    }
 }
 
 void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
@@ -1611,28 +1697,28 @@ void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
 std::string YAMLConfigWriter::createString(Config const& c)
 {
     auto doc = std::string {};
+    constexpr int OneOffset = 4;
 
     auto const process = [&](auto v) {
-        doc.append(format(addOffset(v.documentation, Offset::levels * 4), v.get()));
+        doc.append(format(addOffset(v.documentation, Offset::levels * OneOffset), v.value()));
     };
 
     auto const processWithDoc = [&](auto&& docString, auto... val) {
         doc.append(fmt::format(
-            fmt::runtime(format(addOffset(std::string(docString.value), Offset::levels * 4), val...)),
+            fmt::runtime(format(addOffset(std::string(docString.value), Offset::levels * OneOffset), val...)),
             fmt::arg("comment", "#")));
     };
 
     process(c.platformPlugin);
 
     // inside renderer:
-    {
-        auto const _ = Offset {};
+    scoped([&]() {
         doc.append("renderer: \n");
         process(c.renderingBackend);
         process(c.textureAtlasDirectMapping);
         process(c.textureAtlasHashtableSlots);
         process(c.textureAtlasTileCount);
-    }
+    });
 
     process(c.wordDelimiters);
     process(c.ptyReadBufferSize);
@@ -1658,7 +1744,7 @@ std::string YAMLConfigWriter::createString(Config const& c)
     // inside profiles:
     doc.append(fmt::format(fmt::runtime(c.profiles.documentation), fmt::arg("comment", "#")));
     scoped([&]() {
-        for (auto&& [name, entry]: c.profiles.get())
+        for (auto&& [name, entry]: c.profiles.value())
         {
             doc.append(fmt::format("    {}: \n", name));
             scoped([&]() {
@@ -1676,7 +1762,7 @@ std::string YAMLConfigWriter::createString(Config const& c)
 
                 process(entry.margins);
                 // history: section
-                doc.append(addOffset("history:\n", Offset::levels * 4));
+                doc.append(addOffset("history:\n", Offset::levels * OneOffset));
                 scoped([&]() {
                     process(entry.maxHistoryLineCount);
                     process(entry.historyScrollMultiplier);
@@ -1684,20 +1770,20 @@ std::string YAMLConfigWriter::createString(Config const& c)
                 });
 
                 // scrollbar: section
-                doc.append(addOffset("scrollbar:\n", Offset::levels * 4));
+                doc.append(addOffset("scrollbar:\n", Offset::levels * OneOffset));
                 scoped([&]() {
                     process(entry.scrollbarPosition);
                     process(entry.hideScrollbarInAltScreen);
                 });
 
                 // mouse: section
-                doc.append(addOffset("mouse:\n", Offset::levels * 4));
+                doc.append(addOffset("mouse:\n", Offset::levels * OneOffset));
                 scoped([&]() { process(entry.mouseHideWhileTyping); });
 
                 //  permissions: section
                 doc.append(addOffset("\n"
                                      "permissions:\n",
-                                     Offset::levels * 4));
+                                     Offset::levels * OneOffset));
                 scoped([&]() {
                     process(entry.changeFont);
                     process(entry.captureBuffer);
@@ -1716,7 +1802,7 @@ std::string YAMLConfigWriter::createString(Config const& c)
                 // status_line
                 doc.append(addOffset("\n"
                                      "status_line:\n",
-                                     Offset::levels * 4));
+                                     Offset::levels * OneOffset));
                 scoped([&]() {
                     process(entry.initialStatusDisplayType);
                     process(entry.statusDisplayPosition);
@@ -1725,7 +1811,7 @@ std::string YAMLConfigWriter::createString(Config const& c)
 
                 doc.append(addOffset("\n"
                                      "background:\n",
-                                     Offset::levels * 4));
+                                     Offset::levels * OneOffset));
                 scoped([&]() {
                     process(entry.backgroundOpacity);
                     process(entry.backgroundBlur);
@@ -1735,7 +1821,7 @@ std::string YAMLConfigWriter::createString(Config const& c)
 
                 doc.append(addOffset("\n"
                                      "hyperlink_decoration:\n",
-                                     Offset::levels * 4));
+                                     Offset::levels * OneOffset));
                 scoped([&]() {
                     process(entry.hyperlinkDecorationNormal);
                     process(entry.hyperlinkDecorationHover);
@@ -1746,19 +1832,16 @@ std::string YAMLConfigWriter::createString(Config const& c)
 
     doc.append(fmt::format(fmt::runtime(c.colorschemes.documentation), fmt::arg("comment", "#")));
     scoped([&]() {
-        for (auto&& [name, entry]: c.colorschemes.get())
+        for (auto&& [name, entry]: c.colorschemes.value())
         {
             doc.append(fmt::format("    {}: \n", name));
 
-            {
-                Offset _;
-
+            scoped([&]() {
                 doc.append(fmt::format(fmt::runtime(addOffset("{comment} Default colors\n"
                                                               "default:\n",
-                                                              Offset::levels * 4)),
+                                                              Offset::levels * OneOffset)),
                                        fmt::arg("comment", "#")));
-                {
-                    Offset _;
+                scoped([&]() {
                     processWithDoc(
                         documentation::DefaultColors, entry.defaultBackground, entry.defaultForeground);
 
@@ -1879,23 +1962,23 @@ std::string YAMLConfigWriter::createString(Config const& c)
                                    entry.dimColor(5),
                                    entry.dimColor(6),
                                    entry.dimColor(7));
-                }
+                });
 
-                doc.append(addOffset("", Offset::levels * 4));
-            }
+                doc.append(addOffset("", Offset::levels * OneOffset));
+            });
         }
     });
 
     doc.append(fmt::format(fmt::runtime(c.inputMappings.documentation), fmt::arg("comment", "#")));
     scoped([&]() {
-        for (auto&& entry: c.inputMappings.get().keyMappings)
-            doc.append(addOffset(format(entry), Offset::levels * 4));
+        for (auto&& entry: c.inputMappings.value().keyMappings)
+            doc.append(addOffset(format(entry), Offset::levels * OneOffset));
 
-        for (auto&& entry: c.inputMappings.get().charMappings)
-            doc.append(addOffset(format(entry), Offset::levels * 4));
+        for (auto&& entry: c.inputMappings.value().charMappings)
+            doc.append(addOffset(format(entry), Offset::levels * OneOffset));
 
-        for (auto&& entry: c.inputMappings.get().mouseMappings)
-            doc.append(addOffset(format(entry), Offset::levels * 4));
+        for (auto&& entry: c.inputMappings.value().mouseMappings)
+            doc.append(addOffset(format(entry), Offset::levels * OneOffset));
     });
     return doc;
 }

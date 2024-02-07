@@ -157,11 +157,11 @@ string ContourGuiApp::profileName() const
     if (auto profile = parameters().get<string>("contour.terminal.profile"); !profile.empty())
         return profile;
 
-    if (!_config.defaultProfileName.get().empty())
-        return _config.defaultProfileName.get();
+    if (!_config.defaultProfileName.value().empty())
+        return _config.defaultProfileName.value();
 
-    if (_config.profiles.get().size() == 1)
-        return _config.profiles.get().begin()->first;
+    if (_config.profiles.value().size() == 1)
+        return _config.profiles.value().begin()->first;
 
     return ""s;
 }
@@ -220,13 +220,13 @@ bool ContourGuiApp::loadConfig(string const& target)
     _config = configPath.isEmpty() ? contour::config::loadConfig()
                                    : contour::config::loadConfigFromFile(configPath.toStdString());
 
-    _config.live.get() = _config.live.get() || parameters().boolean("contour.terminal.live-config");
+    _config.live.value() = _config.live.value() || parameters().boolean("contour.terminal.live-config");
 
     if (!_config.profile(profileName()))
     {
         auto const s =
-            accumulate(begin(_config.profiles.get()),
-                       end(_config.profiles.get()),
+            accumulate(begin(_config.profiles.value()),
+                       end(_config.profiles.value()),
                        ""s,
                        [](string const& acc, auto const& profile) -> string {
                            return acc.empty() ? profile.first : fmt::format("{}, {}", acc, profile.first);
@@ -236,7 +236,7 @@ bool ContourGuiApp::loadConfig(string const& target)
     }
 
     if (auto const wd = flags.get<string>("contour.terminal.working-directory"); !wd.empty())
-        _config.profile(profileName())->shell.get().workingDirectory = fs::path(wd);
+        _config.profile(profileName())->shell.value().workingDirectory = fs::path(wd);
 
     config::TerminalProfile* profile = _config.profile(profileName());
     if (!profile)
@@ -249,7 +249,7 @@ bool ContourGuiApp::loadConfig(string const& target)
     auto exe = flags.get<string>("contour.terminal.execute");
     if (!flags.verbatim.empty() || !exe.empty())
     {
-        auto& shell = profile->shell.get();
+        auto& shell = profile->shell.value();
         shell.arguments.clear();
         if (!exe.empty())
         {
@@ -277,7 +277,7 @@ int ContourGuiApp::fontConfigAction()
         return EXIT_FAILURE;
 
     vtrasterizer::FontDescriptions const& fonts =
-        _config.profile(_config.defaultProfileName.get())->fonts.get();
+        _config.profile(_config.defaultProfileName.value())->fonts.value();
     text::font_description const& fontDescription = fonts.regular;
     text::font_locator& fontLocator = createFontLocator(fonts.fontLocator);
     text::font_source_list const fontSources = fontLocator.locate(fontDescription);
@@ -296,7 +296,7 @@ int ContourGuiApp::terminalGuiAction()
     if (!loadConfig("terminal"))
         return EXIT_FAILURE;
 
-    switch (_config.renderingBackend.get())
+    switch (_config.renderingBackend.value())
     {
         case config::RenderingBackend::OpenGL:
             QGuiApplication::setAttribute(Qt::AA_UseSoftwareOpenGL, false);
@@ -315,7 +315,7 @@ int ContourGuiApp::terminalGuiAction()
         errorLog()("Could not access configuration profile.");
         return EXIT_FAILURE;
     }
-    auto appName = QString::fromStdString(profile->wmClass.get());
+    auto appName = QString::fromStdString(profile->wmClass.value());
     QCoreApplication::setApplicationName(appName);
     QCoreApplication::setOrganizationName("contour");
     QCoreApplication::setApplicationVersion(CONTOUR_VERSION_STRING);
@@ -338,11 +338,11 @@ int ContourGuiApp::terminalGuiAction()
     addQtArgIfSet("contour.terminal.session", "-session");
     if (!addQtArgIfSet("contour.terminal.platform", "-platform"))
     {
-        if (!_config.platformPlugin.get().empty())
+        if (!_config.platformPlugin.value().empty())
         {
             static constexpr auto PlatformArg = string_view("-platform");
             qtArgsPtr.push_back(PlatformArg.data());
-            qtArgsPtr.push_back(_config.platformPlugin.get().c_str());
+            qtArgsPtr.push_back(_config.platformPlugin.value().c_str());
         }
     }
 
@@ -408,7 +408,7 @@ int ContourGuiApp::terminalGuiAction()
     // Spawn initial window.
     newWindow();
 
-    if (auto const& bell = config().profile().bell.get().sound; bell == "off")
+    if (auto const& bell = config().profile().bell.value().sound; bell == "off")
     {
         if (auto* bellAudioOutput = _qmlEngine->rootObjects().first()->findChild<QObject*>("BellAudioOutput");
             bellAudioOutput)
@@ -463,7 +463,7 @@ void ContourGuiApp::setupQCoreApplication()
     auto const defaultOrgName = QStringLiteral("contour");
 
     auto const platformName = QGuiApplication::platformName();
-    auto const wmClass = QString::fromStdString(profile->wmClass.get());
+    auto const wmClass = QString::fromStdString(profile->wmClass.value());
 
     auto const effectiveAppName = [&]() -> QString const& {
         // On X11, we want to set the WM_CLASS property to the configured value.

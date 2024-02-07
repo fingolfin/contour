@@ -273,14 +273,14 @@ void TerminalDisplay::setSession(TerminalSession* newSession)
                  "contentScale={}",
                  (void const*) this,
                  (void const*) newSession,
-                 newSession->profile().ssh.get().hostname.empty()
-                     ? fmt::format("program={}", newSession->profile().shell.get().program)
+                 newSession->profile().ssh.value().hostname.empty()
+                     ? fmt::format("program={}", newSession->profile().shell.value().program)
                      : fmt::format("{}@{}:{}",
-                                   newSession->profile().ssh.get().username,
-                                   newSession->profile().ssh.get().hostname,
-                                   newSession->profile().ssh.get().port),
-                 newSession->profile().terminalSize.get(),
-                 newSession->profile().fonts.get().size,
+                                   newSession->profile().ssh.value().username,
+                                   newSession->profile().ssh.value().hostname,
+                                   newSession->profile().ssh.value().port),
+                 newSession->profile().terminalSize.value(),
+                 newSession->profile().fonts.value().size,
                  contentScale());
 
     _session = newSession;
@@ -289,17 +289,17 @@ void TerminalDisplay::setSession(TerminalSession* newSession)
 
     _session->start();
 
-    window()->setFlag(Qt::FramelessWindowHint, !profile().showTitleBar.get());
+    window()->setFlag(Qt::FramelessWindowHint, !profile().showTitleBar.value());
 
     _renderer =
-        make_unique<vtrasterizer::Renderer>(newSession->profile().terminalSize.get(),
-                                            sanitizeFontDescription(profile().fonts.get(), fontDPI()),
+        make_unique<vtrasterizer::Renderer>(newSession->profile().terminalSize.value(),
+                                            sanitizeFontDescription(profile().fonts.value(), fontDPI()),
                                             _session->terminal().colorPalette(),
-                                            newSession->config().textureAtlasHashtableSlots.get(),
-                                            newSession->config().textureAtlasTileCount.get(),
-                                            newSession->config().textureAtlasDirectMapping.get(),
-                                            newSession->profile().hyperlinkDecorationNormal.get(),
-                                            newSession->profile().hyperlinkDecorationHover.get()
+                                            newSession->config().textureAtlasHashtableSlots.value(),
+                                            newSession->config().textureAtlasTileCount.value(),
+                                            newSession->config().textureAtlasDirectMapping.value(),
+                                            newSession->profile().hyperlinkDecorationNormal.value(),
+                                            newSession->profile().hyperlinkDecorationHover.value()
                                             // TODO: , WindowMargin(windowMargin_.left, windowMargin_.bottom);
         );
 
@@ -317,7 +317,7 @@ vtbackend::PageSize TerminalDisplay::windowSize() const noexcept
     if (!_session)
         return vtbackend::PageSize { LineCount(25), ColumnCount(80) };
 
-    return profile().terminalSize.get();
+    return profile().terminalSize.value();
 }
 
 void TerminalDisplay::sizeChanged()
@@ -460,7 +460,7 @@ void TerminalDisplay::logDisplayInfo()
 
     // clang-format off
     auto const fontSizeInPx = static_cast<int>(ceil((
-        profile().fonts.get().size.pt / 72.0) * average(fontDPI())
+        profile().fonts.value().size.pt / 72.0) * average(fontDPI())
     ));
     auto const normalScreenSize = vtbackend::ImageSize {
         Width::cast_from(window()->screen()->size().width()),
@@ -580,8 +580,8 @@ void TerminalDisplay::createRenderer()
     }
 
     _renderTarget = new OpenGLRenderer(
-        _session->profile().textShader.get().value_or(builtinShaderConfig(ShaderClass::Text)),
-        _session->profile().backgroundShader.get().value_or(builtinShaderConfig(ShaderClass::Background)),
+        builtinShaderConfig(ShaderClass::Text),
+        builtinShaderConfig(ShaderClass::Background),
         precalculatedViewSize,
         precalculatedTargetSize,
         textureTileSize,
@@ -963,7 +963,7 @@ void TerminalDisplay::updateImplicitSize()
     assert(_session);
     assert(window());
 
-    auto const requiredSize = computeRequiredSize(_session->profile().margins.get(),
+    auto const requiredSize = computeRequiredSize(_session->profile().margins.value(),
                                                   _renderer->cellSize() * (1.0 / contentScale()),
                                                   _session->terminal().totalPageSize());
 
@@ -979,7 +979,7 @@ void TerminalDisplay::updateMinimumSize()
 
     auto constexpr MinimumTotalPageSize = PageSize { LineCount(5), ColumnCount(10) };
     auto const minimumSize = computeRequiredSize(
-        _session->profile().margins.get(), _renderer->cellSize() * (1.0 / contentScale()), MinimumTotalPageSize);
+        _session->profile().margins.value(), _renderer->cellSize() * (1.0 / contentScale()), MinimumTotalPageSize);
 
     window()->setMinimumSize(QSize(unbox<int>(minimumSize.width), unbox<int>(minimumSize.height)));
 }
@@ -1227,8 +1227,8 @@ bool TerminalDisplay::setPageSize(PageSize newPageSize)
         return false;
 
     auto const viewSize = ImageSize {
-        Width(*gridMetrics().cellSize.width * unbox<unsigned>(profile().terminalSize.get().columns)),
-        Height(*gridMetrics().cellSize.width * unbox<unsigned>(profile().terminalSize.get().columns))
+        Width(*gridMetrics().cellSize.width * unbox<unsigned>(profile().terminalSize.value().columns)),
+        Height(*gridMetrics().cellSize.width * unbox<unsigned>(profile().terminalSize.value().columns))
     };
     _renderer->setPageSize(newPageSize);
     auto const l = scoped_lock { terminal() };

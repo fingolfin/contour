@@ -28,10 +28,10 @@ std::unique_ptr<vtpty::Pty> TerminalSessionManager::createPty()
 {
     auto const& profile = _app.config().profile(_app.profileName());
 #if defined(VTPTY_LIBSSH2)
-    if (!profile->ssh.get().hostname.empty())
-        return make_unique<vtpty::SshSession>(profile->ssh.get());
+    if (!profile->ssh.value().hostname.empty())
+        return make_unique<vtpty::SshSession>(profile->ssh.value());
 #endif
-    return make_unique<vtpty::Process>(profile->shell.get(), vtpty::createPty(profile->terminalSize.get(), nullopt));
+    return make_unique<vtpty::Process>(profile->shell.value(), vtpty::createPty(profile->terminalSize.value(), nullopt));
 }
 
 TerminalSession* TerminalSessionManager::createSession()

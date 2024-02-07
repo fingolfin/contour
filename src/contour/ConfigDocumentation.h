@@ -11,7 +11,6 @@ struct StringLiteral
     constexpr StringLiteral(const char (&str)[N]) { std::copy_n(str, N, value); }
 
     char value[N];
-
 };
 
 constexpr StringLiteral Dummy { "{comment} fmt formatted doc {} \n" };
@@ -91,6 +90,13 @@ constexpr StringLiteral ShowTitleBar { "{comment} When this profile is *activate
                                        "{comment} whether or not the title bar will be shown\n"
                                        "show_title_bar: {}\n"
                                        "\n" };
+
+constexpr StringLiteral ShowIndicatorOnResize {
+    "{comment} When this profile is *activated*, this flag decides\n"
+    "{comment} whether or not the size indicator on resize will be shown.\n"
+    "size_indicator_on_resize: {}\n"
+    "\n"
+};
 
 constexpr StringLiteral MouseHideWhileTyping { "{comment} whether or not to hide mouse when typing\n"
                                                "hide_while_typing: {}\n"
@@ -415,6 +421,28 @@ constexpr StringLiteral Bell {
     "    alert: true\n"
     "\n"
 };
+
+
+constexpr StringLiteral FrozenDecMode {
+        "{comment} Defines a list of DEC modes to explicitly and permanently disable/enable support for.\n"
+        "{comment}\n"
+        "{comment} This is a developer-users-only option that may possibly help investigating problems.\n"
+        "{comment} This option may also be used by regular users if they're asked to in order to disable\n"
+        "{comment} a broken functionality. This is something we hardly try to avoid, of course.\n"
+        "{comment}\n"
+        "{comment} This can be an object with each key being the DEC mode number and its value a boolean,\n"
+        "{comment} indicating whether this DEC mode is permanently set (enabled) or unset (disabled).\n"
+        "{comment}\n"
+        "{comment} Example:\n"
+        "{comment}\n"
+        "{comment}     frozen_dec_modes:\n"
+        "{comment}         2026: false\n"
+        "{comment}         2027: true\n"
+        "{comment}\n"
+        "{comment} Default: (empty object)\n"
+        "{comment}frozen_dec_modes:\n"
+};
+
 
 constexpr StringLiteral Live {
     "{comment} Determines whether the instance is reloading the configuration files "
@@ -748,173 +776,193 @@ constexpr StringLiteral ExperimentalFeatures {
     "{comment}     feature_xyz: true\n"
 };
 
+constexpr StringLiteral DefaultColors { "{comment} Default colors\n"
+                                        "default:\n"
+                                        "    {comment} Default background color (this can be made "
+                                        "transparent, see above).\n"
+                                        "    background: {}\n"
+                                        "    {comment} Default foreground text color.\n"
+                                        "    foreground: {}\n" };
 
-    constexpr StringLiteral DefaultColors {"{comment} Default colors\n"
-                                   "default:\n"
-                                   "    {comment} Default background color (this can be made "
-                                   "transparent, see above).\n"
-                                   "    background: {}\n"
-                                   "    {comment} Default foreground text color.\n"
-                                   "    foreground: {}\n"};
+constexpr StringLiteral HyperlinkDecoration {
+    "\n"
+    "{comment} color to pick for hyperlinks decoration, when hovering\n"
+    "hyperlink_decoration:\n"
+    "    normal: {}\n"
+    "    hover: {}\n"
+};
 
-    constexpr StringLiteral HyperlinkDecoration {"\n"
-                                   "{comment} color to pick for hyperlinks decoration, when hovering\n"
-                                   "hyperlink_decoration:\n"
-                                   "    normal: {}\n"
-                                   "    hover: {}\n"};
+constexpr StringLiteral YankHighlight {
+    "\n"
+    "{comment} Color to pick for vi_mode highlights.\n"
+    "{comment} The value format is equivalent to how selection colors and "
+    "alpha contribution "
+    "is defined.\n"
+    "vi_mode_highlight:\n"
+    "    foreground: {}\n"
+    "    foreground_alpha: {}\n"
+    "    background: {}\n"
+    "    background_alpha: {}\n"
+};
 
-    constexpr StringLiteral YankHighlight{"\n"
-                                   "{comment} Color to pick for vi_mode highlights.\n"
-                                   "{comment} The value format is equivalent to how selection colors and "
-                                   "alpha contribution "
-                                   "is defined.\n"
-                                   "vi_mode_highlight:\n"
-                                   "    foreground: {}\n"
-                                   "    foreground_alpha: {}\n"
-                                   "    background: {}\n"
-                                   "    background_alpha: {}\n"};
+constexpr StringLiteral NormalModeCursorline {
+    "\n"
+    "{comment} Color override for the current cursor's line when in vi_mode:\n"
+    "{comment} The value format is equivalent to how selection colors and alpha "
+    "contribution "
+    "is defined.\n"
+    "{comment} To disable cursorline in vi_mode, set foreground to CellForeground "
+    "and "
+    "background to CellBackground.\n"
+    "vi_mode_cursorline:\n"
+    "    foreground: {}\n"
+    "    foreground_alpha: {}\n"
+    "    background: {}\n"
+    "    background_alpha: {}\n"
+};
 
-    constexpr StringLiteral NormalModeCursorline {"\n"
-                        "{comment} Color override for the current cursor's line when in vi_mode:\n"
-                        "{comment} The value format is equivalent to how selection colors and alpha "
-                        "contribution "
-                        "is defined.\n"
-                        "{comment} To disable cursorline in vi_mode, set foreground to CellForeground "
-                        "and "
-                        "background to CellBackground.\n"
-                        "vi_mode_cursorline:\n"
-                        "    foreground: {}\n"
-                        "    foreground_alpha: {}\n"
-                        "    background: {}\n"
-                        "    background_alpha: {}\n"};
+constexpr StringLiteral Selection {
+    "\n"
+    "{comment} The text selection color can be customized here.\n"
+    "{comment} Leaving a value empty will default to the inverse of the content's "
+    "color "
+    "values.\n"
+    "{comment}\n"
+    "{comment} The color can be specified in RGB as usual, plus\n"
+    "{comment} - CellForeground: Selects the cell's foreground color.\n"
+    "{comment} - CellBackground: Selects the cell's background color.\n"
+    "selection:\n"
+    "    {comment} Specifies the color to be used for the selected text.\n"
+    "    {comment}\n"
+    "    foreground: {}\n"
+    "    {comment} Specifies the alpha value (between 0.0 and 1.0) the configured "
+    "foreground "
+    "color\n"
+    "    {comment} will contribute to the original color.\n"
+    "    {comment}\n"
+    "    {comment} A value of 1.0 will paint over, whereas a value of 0.5 will give\n"
+    "    {comment} a look of a half-transparently painted grid cell.\n"
+    "    foreground_alpha: {}\n"
+    "    {comment} Specifies the color to be used for the selected background.\n"
+    "    {comment}\n"
+    "    background: {}\n"
+    "    {comment} Specifies the alpha value (between 0.0 and 1.0) the configured "
+    "background "
+    "color\n"
+    "    {comment} will contribute to the original color.\n"
+    "    {comment}\n"
+    "    {comment} A value of 1.0 will paint over, whereas a value of 0.5 will give\n"
+    "    {comment} a look of a half-transparently painted grid cell.\n"
+    "    background_alpha: {}\n"
+};
 
-    constexpr StringLiteral Selection {"\n"
-                        "{comment} The text selection color can be customized here.\n"
-                        "{comment} Leaving a value empty will default to the inverse of the content's "
-                        "color "
-                        "values.\n"
-                        "{comment}\n"
-                        "{comment} The color can be specified in RGB as usual, plus\n"
-                        "{comment} - CellForeground: Selects the cell's foreground color.\n"
-                        "{comment} - CellBackground: Selects the cell's background color.\n"
-                        "selection:\n"
-                        "    {comment} Specifies the color to be used for the selected text.\n"
-                        "    {comment}\n"
-                        "    foreground: {}\n"
-                        "    {comment} Specifies the alpha value (between 0.0 and 1.0) the configured "
-                        "foreground "
-                        "color\n"
-                        "    {comment} will contribute to the original color.\n"
-                        "    {comment}\n"
-                        "    {comment} A value of 1.0 will paint over, whereas a value of 0.5 will give\n"
-                        "    {comment} a look of a half-transparently painted grid cell.\n"
-                        "    foreground_alpha: {}\n"
-                        "    {comment} Specifies the color to be used for the selected background.\n"
-                        "    {comment}\n"
-                        "    background: {}\n"
-                        "    {comment} Specifies the alpha value (between 0.0 and 1.0) the configured "
-                        "background "
-                        "color\n"
-                        "    {comment} will contribute to the original color.\n"
-                        "    {comment}\n"
-                        "    {comment} A value of 1.0 will paint over, whereas a value of 0.5 will give\n"
-                        "    {comment} a look of a half-transparently painted grid cell.\n"
-                        "    background_alpha: {}\n"};
+constexpr StringLiteral SearchHighlight {
+    "\n"
+    "{comment} Search match highlighting. Similar to selection highlighting.\n"
+    "search_highlight:\n"
+    "    foreground: {}\n"
+    "    foreground_alpha: {}\n"
+    "    background: {}\n"
+    "    background_alpha: {}\n"
+};
 
-    constexpr StringLiteral SearchHighlight {"\n"
-                                   "{comment} Search match highlighting. Similar to selection highlighting.\n"
-                                   "search_highlight:\n"
-                                   "    foreground: {}\n"
-                                   "    foreground_alpha: {}\n"
-                                   "    background: {}\n"
-                                   "    background_alpha: {}\n"};
+constexpr StringLiteral SearchHighlihtFocused {
+    "\n"
+    "{comment} Search match highlighting (focused term). Similar to selection "
+    "highlighting.\n"
+    "search_highlight_focused:\n"
+    "    foreground: {}\n"
+    "    foreground_alpha: {}\n"
+    "    background: {}\n"
+    "    background_alpha: {}\n"
+};
 
-    constexpr StringLiteral SearchHighlihtFocused {"\n"
-                                   "{comment} Search match highlighting (focused term). Similar to selection "
-                                   "highlighting.\n"
-                                   "search_highlight_focused:\n"
-                                   "    foreground: {}\n"
-                                   "    foreground_alpha: {}\n"
-                                   "    background: {}\n"
-                                   "    background_alpha: {}\n"};
+constexpr StringLiteral WordHighlightCurrent {
+    "\n"
+    "{comment} Coloring for the word that is highlighted due to double-clicking it.\n"
+    "{comment}\n"
+    "{comment} The format is similar to selection highlighting.\n"
+    "word_highlight_current:\n"
+    "    foreground: {}\n"
+    "    foreground_alpha: {}\n"
+    "    background: {}\n"
+    "    background_alpha: {}\n"
+};
 
-    constexpr StringLiteral WordHighlightCurrent {"\n"
-                        "{comment} Coloring for the word that is highlighted due to double-clicking it.\n"
-                        "{comment}\n"
-                        "{comment} The format is similar to selection highlighting.\n"
-                        "word_highlight_current:\n"
-                        "    foreground: {}\n"
-                        "    foreground_alpha: {}\n"
-                        "    background: {}\n"
-                        "    background_alpha: {}\n"};
+constexpr StringLiteral WordHighlight {
+    "\n"
+    "{comment} Coloring for the word that is highlighted due to double-clicking\n"
+    "{comment} another word that matches this word.\n"
+    "{comment}\n"
+    "{comment} The format is similar to selection highlighting.\n"
+    "word_highlight_other:\n"
+    "    foreground: {}\n"
+    "    foreground_alpha: {}\n"
+    "    background: {}\n"
+    "    background_alpha: {}\n"
+};
 
-    constexpr StringLiteral WordHighlight {"\n"
-                        "{comment} Coloring for the word that is highlighted due to double-clicking\n"
-                        "{comment} another word that matches this word.\n"
-                        "{comment}\n"
-                        "{comment} The format is similar to selection highlighting.\n"
-                        "word_highlight_other:\n"
-                        "    foreground: {}\n"
-                        "    foreground_alpha: {}\n"
-                        "    background: {}\n"
-                        "    background_alpha: {}\n"};
+constexpr StringLiteral IndicatorStatusLine {
+    "\n"
+    "{comment} Defines the colors to be used for the Indicator status line.\n"
+    "{comment} Values must be in RGB form.\n"
+    "indicator_statusline:\n"
+    "    foreground: {}\n"
+    "    background: {}\n"
+};
 
-    constexpr StringLiteral IndicatorStatusLine {"\n"
-                                   "{comment} Defines the colors to be used for the Indicator status line.\n"
-                                   "{comment} Values must be in RGB form.\n"
-                                   "indicator_statusline:\n"
-                                   "    foreground: {}\n"
-                                   "    background: {}\n"};
+constexpr StringLiteral IndicatorStatusLineInactive {
+    "\n"
+    "{comment} Alternate colors to be used for the indicator status line when\n"
+    "{comment} this terminal is currently not in focus.\n"
+    "indicator_statusline_inactive:\n"
+    "    foreground: {}\n"
+    "    background: {}\n"
+};
 
-    constexpr StringLiteral IndicatorStatusLineInactive {"\n"
-                        "{comment} Alternate colors to be used for the indicator status line when\n"
-                        "{comment} this terminal is currently not in focus.\n"
-                        "indicator_statusline_inactive:\n"
-                        "    foreground: {}\n"
-                        "    background: {}\n"};
+constexpr StringLiteral InputMethodEditor { "\n"
+                                            "{comment} Colors for the IME (Input Method Editor) area.\n"
+                                            "input_method_editor:\n"
+                                            "    foreground: {}\n"
+                                            "    background: {}\n" };
 
+constexpr StringLiteral NormalColors { "\n"
+                                       "{comment} Normal colors\n"
+                                       "normal:\n"
+                                       "    black:   {}\n"
+                                       "    red:     {}\n"
+                                       "    green:   {}\n"
+                                       "    yellow:  {}\n"
+                                       "    blue:    {}\n"
+                                       "    magenta: {}\n"
+                                       "    cyan:    {}\n"
+                                       "    white:   {}\n" };
 
-    constexpr StringLiteral InputMethodEditor {"\n"
-                                   "{comment} Colors for the IME (Input Method Editor) area.\n"
-                                   "input_method_editor:\n"
-                                   "    foreground: {}\n"
-                                   "    background: {}\n"};
+constexpr StringLiteral BrightColors { "\n"
+                                       "{comment} Bright colors\n"
+                                       "bright:\n"
+                                       "    black:   {}\n"
+                                       "    red:     {}\n"
+                                       "    green:   {}\n"
+                                       "    yellow:  {}\n"
+                                       "    blue:    {}\n"
+                                       "    magenta: {}\n"
+                                       "    cyan:    {}\n"
+                                       "    white:   {}\n" };
 
-    constexpr StringLiteral NormalColors {"\n"
-                                   "{comment} Normal colors\n"
-                                   "normal:\n"
-                                   "    black:   {}\n"
-                                   "    red:     {}\n"
-                                   "    green:   {}\n"
-                                   "    yellow:  {}\n"
-                                   "    blue:    {}\n"
-                                   "    magenta: {}\n"
-                                   "    cyan:    {}\n"
-                                   "    white:   {}\n"};
+constexpr StringLiteral DimColors {
+    "\n"
+    "{comment} Dim (faint) colors, if not set, they're automatically computed "
+    "based on normal colors.\n"
+    "{comment} dim:\n"
+    "{comment}     black:   {}\n"
+    "{comment}     red:     {}\n"
+    "{comment}     green:   {}\n"
+    "{comment}     yellow:  {}\n"
+    "{comment}     blue:    {}\n"
+    "{comment}     magenta: {}\n"
+    "{comment}     cyan:    {}\n"
+    "{comment}     white:   {}\n"
+};
 
-    constexpr StringLiteral BrightColors {"\n"
-                                   "{comment} Bright colors\n"
-                                   "bright:\n"
-                                   "    black:   {}\n"
-                                   "    red:     {}\n"
-                                   "    green:   {}\n"
-                                   "    yellow:  {}\n"
-                                   "    blue:    {}\n"
-                                   "    magenta: {}\n"
-                                   "    cyan:    {}\n"
-                                   "    white:   {}\n"};
-
-    constexpr StringLiteral DimColors {"\n"
-                                   "{comment} Dim (faint) colors, if not set, they're automatically computed "
-                                   "based on normal colors.\n"
-                                   "{comment} dim:\n"
-                                   "{comment}     black:   {}\n"
-                                   "{comment}     red:     {}\n"
-                                   "{comment}     green:   {}\n"
-                                   "{comment}     yellow:  {}\n"
-                                   "{comment}     blue:    {}\n"
-                                   "{comment}     magenta: {}\n"
-                                   "{comment}     cyan:    {}\n"
-                                   "{comment}     white:   {}\n"};
-
-}// namespace contour::config::documentation
+} // namespace contour::config::documentation
