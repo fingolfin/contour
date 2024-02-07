@@ -170,8 +170,8 @@
     ],
     "packagePresets": [
         {
-            "name": "default",
-            "configurePreset": "linux-clang",
+            "name": "linux-clang-release",
+            "configurePreset": "linux-clang-release",
             "generators": [ "TGZ" ]
         }
     ]
