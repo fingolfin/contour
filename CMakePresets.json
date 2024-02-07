@@ -173,6 +173,11 @@
             "name": "linux-clang-release",
             "configurePreset": "linux-clang-release",
             "generators": [ "TGZ" ]
+        },
+        {
+            "name": "linux-gcc-release",
+            "configurePreset": "linux-gcc-release",
+            "generators": [ "TGZ" ]
         }
     ]
 }
