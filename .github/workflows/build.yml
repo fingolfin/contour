@@ -60,8 +60,7 @@ jobs:
     - name: Run clang-format style check for C/C++/Protobuf programs.
       uses: jidicula/clang-format-action@v4.11.0
       with:
-        clang-format-version: '15'
-        check-path: 'src'
+        clang-format-version: '17'
         #exclude-regex: 'sse2neon.h'
     - name: "Check includes"
       run: ./scripts/check-includes.sh
