@@ -440,7 +440,7 @@ void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
 }
 
 void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
-                                     std::string const& entry,
+                                     [[maybe_unused]] std::string const& entry,
                                      vtbackend::ColorPalette::Palette& colors)
 {
     auto const loadColorMap = [&](YAML::Node const& parent, std::string const& key, size_t offset) -> bool {
@@ -857,7 +857,16 @@ void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
 void YAMLConfigReader::loadFromEntry(YAML::Node const& node, std::string const& entry, text::font_size& where)
 {
     if (auto const child = node[entry])
-        where = text::font_size(child.as<double>());
+    {
+        auto const size = child.as<double>();
+        if(size < MinimumFontSize.pt)
+        {
+            logger()("Specified font size is smaller than minimal available 8");
+            where = MinimumFontSize;
+            return;
+        }
+        where = text::font_size(size);
+    }
     logger()("Loading entry: {}, value {}", entry, where.pt);
 }
 
@@ -1007,7 +1016,6 @@ void YAMLConfigReader::loadFromEntry(YAML::Node const& node,
     auto parseModifierKey = [&](std::string const& key) -> std::optional<text::render_mode> {
         auto const literal = crispy::toLower(key);
 
-        using Type = vtbackend::VTType;
         auto constexpr static Mappings = std::array {
             std::pair { "lcd", text::render_mode::lcd },
             std::pair { "light", text::render_mode::light },
