@@ -7,11 +7,11 @@
             "description": "Common settings for all configurations",
             "binaryDir": "${sourceDir}/build/${presetName}",
             "cacheVariables": {
-                "PEDANTIC_COMPILER": "ON",
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
                 "CONTOUR_INSTALL_TOOLS": "ON",
                 "LIBTERMINAL_BUILD_BENCH_HEADLESS": "ON",
-                "PEDANTIC_COMPILER_WERROR": "ON",
-                "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}"
+                "PEDANTIC_COMPILER": "ON",
+                "PEDANTIC_COMPILER_WERROR": "ON"
             }
         },
         {
@@ -100,6 +100,7 @@
                 "rhs": "Darwin"
             },
             "cacheVariables": {
+                "CODE_SIGN_CERTIFICATE_ID": "Developer ID Application: Christian Parpart (6T525MU9UR)",
                 "CMAKE_PREFIX_PATH": "/opt/homebrew/opt/qt"
             }
         },
@@ -220,7 +221,7 @@
         {
             "name": "macos-release",
             "configurePreset": "macos-release",
-            "generators": [ "DMG" ]
+            "generators": [ "DragNDrop" ]
         }
     ]
 }
