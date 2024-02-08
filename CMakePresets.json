@@ -213,14 +213,9 @@
     ],
     "packagePresets": [
         {
-            "name": "linux-clang-release",
-            "configurePreset": "linux-clang-release",
-            "generators": [ "TGZ" ]
-        },
-        {
-            "name": "linux-gcc-release",
-            "configurePreset": "linux-gcc-release",
-            "generators": [ "TGZ" ]
+            "name": "linux-release",
+            "configurePreset": "linux-release",
+            "generators": [ "DEB" ]
         },
         {
             "name": "macos-release",

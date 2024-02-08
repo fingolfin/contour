@@ -61,9 +61,10 @@ jobs:
       run: |
         wget https://apt.llvm.org/llvm.sh
         chmod +x llvm.sh
-        sudo ./llvm.sh 18
+        sudo ./llvm.sh 17
+        sudo apt-get install clang-format-17
     - name: "Clang-format"
-      run: find ./src/ -name "*.cpp" -o -name "*.h" | xargs clang-format --Werror --dry-run
+      run: find ./src/ -name "*.cpp" -o -name "*.h" | xargs clang-format-17 --Werror --dry-run
     - name: "Check includes"
       run: ./scripts/check-includes.sh
 
@@ -628,11 +629,11 @@ jobs:
         with:
           name: contour-ubuntu2204-tests
           path: |
-            build/src/crispy/crispy_test
-            build/src/vtparser/vtparser_test
-            build/src/vtbackend/vtbackend_test
-            build/src/vtbackend/bench-headless
-            build/src/vtrasterizer/vtrasterizer_test
+            build/linux-debug/src/crispy/crispy_test
+            build/linux-debug/src/vtparser/vtparser_test
+            build/linux-debug/src/vtbackend/vtbackend_test
+            build/linux-debug/src/vtbackend/bench-headless
+            build/linux-debug/src/vtrasterizer/vtrasterizer_test
             test/images
           retention-days: 1
   # }}}
@@ -827,6 +828,7 @@ jobs:
             EXTRA_CMAKE_FLAGS="$EXTRA_CMAKE_FLAGS \
                                -DCMAKE_CXX_STANDARD=$CMAKE_CXX_STANDARD \
                                -DCMAKE_INSTALL_PREFIX="/usr" \
+                               -DCONTOUR_TESTING=ON \
                                " \
             ./scripts/ci-prepare-contour.sh
       - name: "build"
@@ -836,7 +838,7 @@ jobs:
       - name: "CPack: Creating DEB package"
         run: |
           set -ex
-          cmake --build --preset linux-release --target package --verbose
+          cpack --preset linux-release
           OS_VERSION=${{ matrix.os_version }}
           OS_VERSION=${OS_OVERRIDE/./_}
           mv -v "./build/linux-release/Contour-${{ steps.set_vars.outputs.VERSION_STRING }}-Linux-contour.deb" \
@@ -887,13 +889,13 @@ jobs:
                           ncurses-bin \
                           valgrind
       - name: "test: crispy (via valgrind)"
-        run: valgrind --error-exitcode=64 ./build/src/crispy/crispy_test
+        run: valgrind --error-exitcode=64 ./build/linux-debug/src/crispy/crispy_test
       - name: "test: vtparser (via valgrind)"
-        run: valgrind --error-exitcode=64 ./build/src/vtparser/vtparser_test
+        run: valgrind --error-exitcode=64 ./build/linux-debug/src/vtparser/vtparser_test
       - name: "test: vtbackend (via valgrind)"
-        run: valgrind --error-exitcode=64 ./build/src/vtbackend/vtbackend_test
+        run: valgrind --error-exitcode=64 ./build/linux-debug/src/vtbackend/vtbackend_test
       - name: "test: vtrasterizer (via valgrind)"
-        run: valgrind --error-exitcode=64 ./build/src/vtrasterizer/vtrasterizer_test
+        run: valgrind --error-exitcode=64 ./build/linux-debug/src/vtrasterizer/vtrasterizer_test
   # }}}
   # {{{ Ubuntu 22.04: Test bench-headless
   test_ubuntu2204_bench_headless:
@@ -932,7 +934,7 @@ jobs:
                           ncurses-bin \
                           valgrind
       - name: "bench-headless: ${{ matrix.test_case }}"
-        run: valgrind --error-exitcode=64 ./build/src/vtbackend/bench-headless ${{ matrix.test_case }} size 1
+        run: valgrind --error-exitcode=64 ./build/linux-debug/src/vtbackend/bench-headless ${{ matrix.test_case }} size 1
   # }}}
   # {{{ Ubuntu check matrix
   check_ubuntu2204_matrix_test_matrix:
