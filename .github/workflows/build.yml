@@ -480,7 +480,7 @@ jobs:
         id: runvcpkg
         with:
           vcpkgDirectory: ${{ runner.workspace }}/vcpkg/
-          vcpkgGitCommitId: 3715d743ac08146d9b7714085c1babdba9f262d5
+          vcpkgGitCommitId: 80403036a665cb8fcc1a1b3e17593d20b03b2489
       - name: "create build directory"
         shell: powershell
         run: |
