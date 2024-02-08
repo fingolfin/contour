@@ -10,6 +10,7 @@
                 "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
                 "CONTOUR_INSTALL_TOOLS": "ON",
                 "LIBTERMINAL_BUILD_BENCH_HEADLESS": "ON",
+                "LIBUNICODE_TESTING": "OFF",
                 "PEDANTIC_COMPILER": "ON",
                 "PEDANTIC_COMPILER_WERROR": "ON"
             }
