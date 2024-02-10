@@ -214,6 +214,15 @@
             }
         },
         {
+            "name": "macos-debug",
+            "configurePreset": "macos-debug",
+            "output": {"outputOnFailure": true},
+            "execution": {
+                "noTestsAction": "error",
+                "stopOnFailure": true
+            }
+        },
+        {
             "name": "windows-cl-debug",
             "configurePreset": "windows-cl-debug",
             "output": {"outputOnFailure": true},
@@ -223,8 +232,8 @@
             }
         },
         {
-            "name": "macos-debug",
-            "configurePreset": "macos-debug",
+            "name": "windows-cl-release",
+            "configurePreset": "windows-cl-release",
             "output": {"outputOnFailure": true},
             "execution": {
                 "noTestsAction": "error",
