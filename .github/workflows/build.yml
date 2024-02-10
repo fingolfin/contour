@@ -490,9 +490,8 @@ jobs:
       - name: "Create Package(s)"
         shell: powershell
         run: |
-          cd build
-          cpack -V
-          type "_CPack_Packages/win64/WIX/wix.log"
+          cpack --preset windows-cl-release
+          #type "_CPack_Packages/win64/WIX/wix.log"
       - name: inspect
         run: Get-ChildItem -Recurse
       - name: "Rename package(s)"

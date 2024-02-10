@@ -246,6 +246,11 @@
             "name": "macos-release",
             "configurePreset": "macos-release",
             "generators": [ "DragNDrop" ]
+        },
+        {
+            "name": "windows-cl-release",
+            "configurePreset": "windows-cl-release",
+            "generators": [ "MSI", "ZIP" ]
         }
     ]
 }
