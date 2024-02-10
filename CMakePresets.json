@@ -117,6 +117,7 @@
         },
         {
             "name": "windows-common",
+            "inherits": "contour-common",
             "displayName": "Windows - common settings",
             "hidden": true,
             "generator": "Visual Studio 17 2022",
