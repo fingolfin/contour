@@ -9,6 +9,7 @@
             "cacheVariables": {
                 "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
                 "CONTOUR_INSTALL_TOOLS": "ON",
+                "CONTOUR_TESTING": "ON",
                 "LIBTERMINAL_BUILD_BENCH_HEADLESS": "ON",
                 "LIBUNICODE_TESTING": "OFF",
                 "PEDANTIC_COMPILER": "ON",
@@ -26,8 +27,7 @@
             "name": "debug",
             "hidden": true,
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "CONTOUR_TESTING": "ON"
+                "CMAKE_BUILD_TYPE": "Debug"
             }
         },
         {
@@ -134,19 +134,13 @@
             "name": "windows-cl-debug",
             "inherits": ["windows-common", "debug"],
             "displayName": "Windows - MSVC - Debug",
-            "description": "Using MSVC compiler (64-bit)",
-            "cacheVariables": {
-                "CONTOUR_TESTING": "ON"
-            }
+            "description": "Using MSVC compiler (64-bit)"
         },
         {
             "name": "windows-cl-release",
-            "inherits": ["windows-common", "debug"],
-            "displayName": "Windows - MSVC - Debug",
-            "description": "Using MSVC compiler (64-bit)",
-            "cacheVariables": {
-                "CONTOUR_TESTING": "OFF"
-            }
+            "inherits": ["windows-common", "release"],
+            "displayName": "Windows - MSVC - Release",
+            "description": "Using MSVC compiler (64-bit)"
         }
     ],
     "buildPresets": [
